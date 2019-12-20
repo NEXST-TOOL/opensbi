@@ -20,6 +20,7 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_version.h>
 #include <sbi/riscv_asm.h>
+#include <sm/sm_sbi_opensbi.h>
 
 #define SBI_ECALL_VERSION_MAJOR 0
 #define SBI_ECALL_VERSION_MINOR 2
@@ -205,7 +206,12 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 	} else if (extension_id == SBI_EXT_BASE)
 		ret = sbi_ecall_base_handler(scratch, extension_id, func_id,
 					     args, &out_val, &trap);
-	else if (extension_id >= SBI_EXT_VENDOR_START &&
+        else if (extension_id == SBI_KEYSTONE_SM){
+          sbi_printf("***&*%lx\r\n",regs->a6);
+          ret = sbi_sm_interface(scratch, extension_id, regs, &out_val, &trap);
+          sbi_printf("***%x = %lx\r\n",ret,out_val);
+        }
+          else if (extension_id >= SBI_EXT_VENDOR_START &&
 		extension_id <= SBI_EXT_VENDOR_END) {
 		ret = sbi_ecall_vendor_ext_handler(scratch, extension_id,
 						   func_id, args, &out_val,
