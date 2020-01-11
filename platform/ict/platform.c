@@ -18,6 +18,8 @@
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/sys/clint.h>
 
+#include "pm_service/pm_svc_main.h"
+
 /* clang-format off */
 
 #define SERVE_CLINT_ADDR		0x2000000
@@ -38,6 +40,8 @@
 #define SERVE_ENABLED_HART_MASK		((1 << SERVE_HART_COUNT) - 1)	
 
 #define SERVE_HARITD_DISABLED		~(SERVE_ENABLED_HART_MASK)
+
+#define SERVE_EXT_PM		0x09000000
 
 static volatile void *uart_base;
 
@@ -89,6 +93,16 @@ static int serve_early_init(bool cold_boot)
 
 static int serve_final_init(bool cold_boot)
 {
+	int rc;
+
+	if (cold_boot) {
+#if SERVE_ECALL_EXT
+		rc = pm_setup();
+		if (rc)
+			return rc;
+#endif
+	}
+
 	return 0;
 }
 
@@ -123,14 +137,14 @@ static int serve_irqchip_init(bool cold_boot)
 
 	if (cold_boot) {
 		rc = plic_cold_irqchip_init(SERVE_PLIC_ADDR,
-					    SERVE_PLIC_NUM_SOURCES,
-					    SERVE_HART_COUNT);
+						SERVE_PLIC_NUM_SOURCES,
+						SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
 
 	return plic_warm_irqchip_init(hartid, (hartid) ? (2 * hartid - 1) : 0,
-				      (hartid) ? (2 * hartid) : -1);
+					  (hartid) ? (2 * hartid) : -1);
 }
 
 static int serve_ipi_init(bool cold_boot)
@@ -159,6 +173,38 @@ static int serve_timer_init(bool cold_boot)
 	return clint_warm_timer_init();
 }
 
+static int serve_vendor_ext_check(long extid) {
+#if SERVE_ECALL_EXT
+	switch (extid) {
+		case SERVE_EXT_PM:
+			return 1;
+		default:
+			return 0;
+	}
+#else
+	return 0;
+#endif
+}
+
+static int serve_vendor_ext_provider(
+	long extid,
+	long funcid,
+	unsigned long *args,
+	unsigned long *out_value,
+	struct sbi_trap_info *out_trap
+) {
+#if SERVE_ECALL_EXT
+	switch (extid) {
+		case SERVE_EXT_PM:
+			return pm_ecall_handler(funcid, args, out_value);
+		default:
+			return SBI_ENOTSUPP;
+	}
+#else
+	return SBI_ENOTSUPP;
+#endif
+}
+
 const struct sbi_platform_operations platform_ops = {
 	.pmp_region_count	= serve_pmp_region_count,
 	.pmp_region_info	= serve_pmp_region_info,
@@ -174,6 +220,8 @@ const struct sbi_platform_operations platform_ops = {
 	.timer_event_stop	= clint_timer_event_stop,
 	.timer_event_start	= clint_timer_event_start,
 	.timer_init		= serve_timer_init,
+	.vendor_ext_check	 = serve_vendor_ext_check,
+	.vendor_ext_provider  = serve_vendor_ext_provider,
 };
 
 const struct sbi_platform platform = {
