@@ -24,6 +24,10 @@
 #define PM_SET_SUSPEND_MODE	0xa02
 #define PM_GET_TRUSTZONE_VERSION	0xa03
 
+//Return value to ECALL caller
+#define ECALL_RET1(result, ret0)		{ outval[0] = ret0; return result; }
+#define ECALL_RET2(result, ret0, ret1)	{ outval[0] = ret0; outval[1] = ret1; return result; }
+
 /* pm_up = !0 - UP, pm_up = 0 - DOWN */
 static int32_t pm_up = 0, ipi_irq_flag = 0;
 
@@ -104,7 +108,6 @@ int pm_ecall_handler(long funcid, unsigned long *args, unsigned long *outval)
 
 	uint32_t pm_arg[4];
 
-	#define ECALL_RET1(result, val) { *outval = val; return result; }
 
 	/* Handle case where PM wasn't initialized properly */
 	if (!pm_up)
@@ -188,16 +191,14 @@ int pm_ecall_handler(long funcid, unsigned long *args, unsigned long *outval)
 		ret = pm_init_finalize();
 		ECALL_RET1(0, (uint64_t)ret);
 
-#if 0
 	case PM_GET_NODE_STATUS:
 	{
 		uint32_t buff[3];
 
 		ret = pm_get_node_status(pm_arg[0], buff);
-		SMC_RET2(handle, (uint64_t)ret | ((uint64_t)buff[0] << 32),
+		ECALL_RET2(0, (uint64_t)ret | ((uint64_t)buff[0] << 32),
 			 (uint64_t)buff[1] | ((uint64_t)buff[2] << 32));
 	}
-#endif
 
 	case PM_GET_OP_CHARACTERISTIC:
 	{
@@ -250,33 +251,29 @@ int pm_ecall_handler(long funcid, unsigned long *args, unsigned long *outval)
 		ECALL_RET1(0, (uint64_t)ret | ((uint64_t)value) << 32);
 	}
 
-#if 0
 	case PM_GET_CHIPID:
 	{
 		uint32_t result[2];
 
 		ret = pm_get_chipid(result);
-		SMC_RET2(handle, (uint64_t)ret | ((uint64_t)result[0] << 32),
+		ECALL_RET2(0, (uint64_t)ret | ((uint64_t)result[0] << 32),
 			 result[1]);
 	}
-#endif
 
 	case PM_SECURE_RSA_AES:
 		ret = pm_secure_rsaaes(pm_arg[0], pm_arg[1], pm_arg[2],
 				       pm_arg[3]);
 		ECALL_RET1(0, (uint64_t)ret);
 
-#if 0
 	case PM_GET_CALLBACK_DATA:
 	{
 		uint32_t result[4] = {0};
 
 		pm_get_callbackdata(result, sizeof(result));
-		SMC_RET2(handle,
+		ECALL_RET2(0,
 			 (uint64_t)result[0] | ((uint64_t)result[1] << 32),
 			 (uint64_t)result[2] | ((uint64_t)result[3] << 32));
 	}
-#endif
 
 	case PM_PINCTRL_REQUEST:
 		ret = pm_pinctrl_request(pm_arg[0]);
@@ -319,17 +316,15 @@ int pm_ecall_handler(long funcid, unsigned long *args, unsigned long *outval)
 		ECALL_RET1(0, (uint64_t)ret | ((uint64_t)value) << 32);
 	}
 
-#if 0
 	case PM_QUERY_DATA:
 	{
 		uint32_t data[4] = { 0 };
 
 		pm_query_data(pm_arg[0], pm_arg[1], pm_arg[2],
 			      pm_arg[3], data);
-		SMC_RET2(handle, (uint64_t)data[0]  | ((uint64_t)data[1] << 32),
+		ECALL_RET2(0, (uint64_t)data[0]  | ((uint64_t)data[1] << 32),
 			 (uint64_t)data[2] | ((uint64_t)data[3] << 32));
 	}
-#endif
 
 	case PM_CLOCK_ENABLE:
 		ret = pm_clock_enable(pm_arg[0]);
@@ -370,11 +365,9 @@ int pm_ecall_handler(long funcid, unsigned long *args, unsigned long *outval)
 		uint64_t value;
 
 		ret = pm_clock_getrate(pm_arg[0], &value);
-		ECALL_RET1(0, (uint64_t)ret);
-		/*
-		SMC_RET2(handle, (uint64_t)ret |
+		ECALL_RET2(0, (uint64_t)ret |
 				  (((uint64_t)value & 0xFFFFFFFFU) << 32U),
-			 (value >> 32U) & 0xFFFFFFFFU);*/
+			 (value >> 32U) & 0xFFFFFFFFU);
 
 	}
 
@@ -404,17 +397,15 @@ int pm_ecall_handler(long funcid, unsigned long *args, unsigned long *outval)
 				       pm_arg[3]);
 		ECALL_RET1(0, (uint64_t)ret);
 
-#if 0
 	case PM_SECURE_IMAGE:
 	{
 		uint32_t result[2];
 
 		ret = pm_secure_image(pm_arg[0], pm_arg[1], pm_arg[2],
 				      pm_arg[3], &result[0]);
-		SMC_RET2(handle, (uint64_t)ret | ((uint64_t)result[0] << 32),
+		ECALL_RET2(0, (uint64_t)ret | ((uint64_t)result[0] << 32),
 			 result[1]);
 	}
-#endif
 
 	case PM_FPGA_READ:
 	{

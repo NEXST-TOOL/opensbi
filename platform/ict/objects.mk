@@ -20,7 +20,7 @@ platform-objs-y += pm_service/pm_svc_main.o
 platform-objs-y += pm_service/zynqmp_ipi.o
 endif
 
-platform-genflags-y += -DSERVE_HART_COUNT=$(HART_COUNT) \
+platform-genflags-y += -DSERVE_HART_COUNT=$(HART_COUNT)
 
 ifeq ($(SERVE_PLAT),r)
 platform-genflags-y += -DSERVE_UART0_ADDR=0xE0000000

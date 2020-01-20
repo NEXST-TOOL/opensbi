@@ -186,7 +186,7 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 	unsigned long extension_id = regs->a7;
 	unsigned long func_id = regs->a6;
 	struct sbi_trap_info trap = {0};
-	unsigned long out_val;
+	unsigned long out_val[2];
 	bool is_0_1_spec = 0;
 	unsigned long args[6];
 
@@ -204,11 +204,11 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 		is_0_1_spec = 1;
 	} else if (extension_id == SBI_EXT_BASE)
 		ret = sbi_ecall_base_handler(scratch, extension_id, func_id,
-					     args, &out_val, &trap);
+					     args, out_val, &trap);
 	else if (extension_id >= SBI_EXT_VENDOR_START &&
 		extension_id <= SBI_EXT_VENDOR_END) {
 		ret = sbi_ecall_vendor_ext_handler(scratch, extension_id,
-						   func_id, args, &out_val,
+						   func_id, args, out_val,
 						   &trap);
 	} else {
 		ret = SBI_ENOTSUPP;
@@ -226,9 +226,20 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 		 * case should be handled differently.
 		 */
 		regs->mepc += 4;
-		regs->a0 = ret;
-		if (!is_0_1_spec)
-			regs->a1 = out_val;
+		
+		if (is_0_1_spec)
+			regs->a0 = ret;
+		else {
+			if (extension_id == SBI_EXT_BASE) 
+			{
+				regs->a0 = ret;
+				regs->a1 = out_val[0];
+			}
+			else {
+				regs->a0 = out_val[0];
+				regs->a1 = out_val[1];
+			}
+		}
 	}
 
 	return 0;
