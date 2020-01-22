@@ -20,7 +20,7 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_version.h>
 #include <sbi/riscv_asm.h>
-#include <sm/sm_sbi_opensbi.h>
+#include <sm_sbi_opensbi.h>
 
 #define SBI_ECALL_VERSION_MAJOR 0
 #define SBI_ECALL_VERSION_MINOR 2
