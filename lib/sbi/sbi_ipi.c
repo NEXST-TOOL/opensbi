@@ -18,7 +18,7 @@
 #include <sbi/sbi_tlb.h>
 #include <sbi/sbi_trap.h>
 #include <sbi/sbi_unpriv.h>
-
+#include <sm_sbi_opensbi.h>
 static unsigned long ipi_data_off;
 
 static int sbi_ipi_send(struct sbi_scratch *scratch, u32 hartid, u32 event,
@@ -121,6 +121,9 @@ void sbi_ipi_process(struct sbi_scratch *scratch)
 		case SBI_IPI_EVENT_HALT:
 			sbi_hart_hang();
 			break;
+                case SBI_SM_EVENT:
+                        sm_ipi_process();
+                        break;
 		default:
 			break;
 		};
