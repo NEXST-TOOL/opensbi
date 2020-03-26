@@ -45,6 +45,14 @@ else
  platform_parent_dir=$(src_dir)/platform
 endif
 
+ifdef platform
+  sm_platform=$(platform)
+  sm-cflags-y="-DTARGET_PLATFORM_HEADER=\"platform/$(platform)/$(platform).h\""
+else
+  sm_platform="default"
+  sm-cflags-y="-DTARGET_PLATFORM_HEADER=\"platform/default/default.h\""
+endif
+
 # Check if verbosity is ON for build process
 CMD_PREFIX_DEFAULT := @
 ifeq ($(V), 1)
@@ -60,6 +68,7 @@ export platform_build_dir=$(build_dir)/platform/$(platform_subdir)
 export include_dir=$(CURDIR)/include
 export libsbi_dir=$(CURDIR)/lib/sbi
 export libsbiutils_dir=$(CURDIR)/lib/utils
+export sm_dir=$(CURDIR)/sm
 export firmware_dir=$(CURDIR)/firmware
 
 # Find library version
@@ -102,6 +111,7 @@ platform-object-mks=$(shell if [ -d $(platform_src_dir)/ ]; then find $(platform
 endif
 libsbi-object-mks=$(shell if [ -d $(libsbi_dir) ]; then find $(libsbi_dir) -iname "objects.mk" | sort -r; fi)
 libsbiutils-object-mks=$(shell if [ -d $(libsbiutils_dir) ]; then find $(libsbiutils_dir) -iname "objects.mk" | sort -r; fi)
+sm-object-mks=$(shell if [ -d $(sm_dir) ]; then find -L $(sm_dir) -iname "objects.mk" | sort -r; fi)
 firmware-object-mks=$(shell if [ -d $(firmware_dir) ]; then find $(firmware_dir) -iname "objects.mk" | sort -r; fi)
 
 # Include platform specifig config.mk
@@ -115,11 +125,13 @@ include $(platform-object-mks)
 endif
 include $(libsbi-object-mks)
 include $(libsbiutils-object-mks)
+include $(sm-object-mks)
 include $(firmware-object-mks)
 
 # Setup list of objects
 libsbi-objs-path-y=$(foreach obj,$(libsbi-objs-y),$(build_dir)/lib/sbi/$(obj))
 libsbiutils-objs-path-y=$(foreach obj,$(libsbiutils-objs-y),$(build_dir)/lib/utils/$(obj))
+sm-objs-path-y=$(foreach obj,$(sm-objs-y),$(build_dir)/sm/$(obj))
 ifdef PLATFORM
 platform-objs-path-y=$(foreach obj,$(platform-objs-y),$(platform_build_dir)/$(obj))
 platform-dtb-path-y=$(foreach obj,$(platform-dtb-y),$(platform_build_dir)/$(obj))
@@ -132,6 +144,7 @@ firmware-objs-path-y=$(firmware-bins-path-y:.bin=.o)
 deps-y=$(platform-objs-path-y:.o=.dep)
 deps-y+=$(libsbi-objs-path-y:.o=.dep)
 deps-y+=$(libsbiutils-objs-path-y:.o=.dep)
+deps-y+=$(sm-objs-path-y:.o=.dep)
 deps-y+=$(firmware-objs-path-y:.o=.dep)
 
 # Setup platform ABI, ISA and Code Model
@@ -151,7 +164,7 @@ endif
 
 # Setup compilation commands flags
 GENFLAGS	=	-I$(platform_src_dir)/include
-GENFLAGS	+=	-I$(include_dir)
+GENFLAGS	+=	-I$(include_dir) -I$(sm_dir)
 ifneq ($(OPENSBI_VERSION_GIT),)
 GENFLAGS	+=	-DOPENSBI_VERSION_GIT="\"$(OPENSBI_VERSION_GIT)\""
 endif
@@ -160,6 +173,7 @@ GENFLAGS	+=	$(platform-genflags-y)
 GENFLAGS	+=	$(firmware-genflags-y)
 
 CFLAGS		=	-g -Wall -Werror -nostdlib -fno-strict-aliasing -O2
+CFLAGS          +=      $(sm-cflags-y)
 CFLAGS		+=	-fno-omit-frame-pointer -fno-optimize-sibling-calls
 CFLAGS		+=	-mno-save-restore -mstrict-align
 CFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)
@@ -258,6 +272,7 @@ compile_dts = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 
 targets-y  = $(build_dir)/lib/libsbi.a
 targets-y  += $(build_dir)/lib/libsbiutils.a
+targets-y  += $(build_dir)/sm/sm.a
 ifdef PLATFORM
 targets-y += $(platform_build_dir)/lib/libplatsbi.a
 targets-y += $(platform-dtb-path-y)
@@ -274,13 +289,16 @@ all: $(targets-y)
 $(build_dir)/%.bin: $(build_dir)/%.elf
 	$(call compile_objcopy,$@,$<)
 
-$(build_dir)/%.elf: $(build_dir)/%.o $(build_dir)/%.elf.ld $(platform_build_dir)/lib/libplatsbi.a
-	$(call compile_elf,$@,$@.ld,$< $(platform_build_dir)/lib/libplatsbi.a)
+$(build_dir)/%.elf: $(build_dir)/%.o $(build_dir)/%.elf.ld $(platform_build_dir)/lib/libplatsbi.a $(build_dir)/sm/sm.a
+	$(call compile_elf,$@,$@.ld,$< $(platform_build_dir)/lib/libplatsbi.a $(build_dir)/sm/sm.a)
 
 $(platform_build_dir)/%.ld: $(src_dir)/%.ldS
 	$(call compile_cpp,$@,$<)
 
 $(build_dir)/lib/libsbi.a: $(libsbi-objs-path-y)
+	$(call compile_ar,$@,$^)
+
+$(build_dir)/sm/sm.a: $(sm-objs-path-y)
 	$(call compile_ar,$@,$^)
 
 $(build_dir)/lib/libsbiutils.a: $(libsbi-objs-path-y) $(libsbiutils-objs-path-y)
