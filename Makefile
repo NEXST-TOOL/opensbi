@@ -45,13 +45,14 @@ else
  platform_parent_dir=$(src_dir)/platform
 endif
 
-ifdef platform
-  sm_platform=$(platform)
-  sm-cflags-y="-DTARGET_PLATFORM_HEADER=\"platform/$(platform)/$(platform).h\""
+ifdef SM_PLAT
+  sm_platform=$(SM_PLAT)
+  sm-cflags-y="-DTARGET_PLATFORM_HEADER=\"platform/$(SM_PLAT)/$(SM_PLAT).h\""
 else
-  sm_platform="default"
+  sm_platform=default
   sm-cflags-y="-DTARGET_PLATFORM_HEADER=\"platform/default/default.h\""
 endif
+sm_build_dir=$(build_dir)-sm
 
 # Check if verbosity is ON for build process
 CMD_PREFIX_DEFAULT := @
@@ -68,7 +69,7 @@ export platform_build_dir=$(build_dir)/platform/$(platform_subdir)
 export include_dir=$(CURDIR)/include
 export libsbi_dir=$(CURDIR)/lib/sbi
 export libsbiutils_dir=$(CURDIR)/lib/utils
-export sm_dir=$(CURDIR)/sm
+export sm_dir=$(CURDIR)/../sm
 export firmware_dir=$(CURDIR)/firmware
 
 # Find library version
@@ -131,7 +132,7 @@ include $(firmware-object-mks)
 # Setup list of objects
 libsbi-objs-path-y=$(foreach obj,$(libsbi-objs-y),$(build_dir)/lib/sbi/$(obj))
 libsbiutils-objs-path-y=$(foreach obj,$(libsbiutils-objs-y),$(build_dir)/lib/utils/$(obj))
-sm-objs-path-y=$(foreach obj,$(sm-objs-y),$(build_dir)/sm/$(obj))
+sm-objs-path-y=$(foreach obj,$(sm-objs-y),$(sm_build_dir)/$(obj))
 ifdef PLATFORM
 platform-objs-path-y=$(foreach obj,$(platform-objs-y),$(platform_build_dir)/$(obj))
 platform-dtb-path-y=$(foreach obj,$(platform-dtb-y),$(platform_build_dir)/$(obj))
@@ -173,7 +174,7 @@ GENFLAGS	+=	$(platform-genflags-y)
 GENFLAGS	+=	$(firmware-genflags-y)
 
 CFLAGS		=	-g -Wall -Werror -nostdlib -fno-strict-aliasing -O2
-CFLAGS          +=      $(sm-cflags-y)
+CFLAGS      +=  $(sm-cflags-y)
 CFLAGS		+=	-fno-omit-frame-pointer -fno-optimize-sibling-calls
 CFLAGS		+=	-mno-save-restore -mstrict-align
 CFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)
@@ -306,6 +307,12 @@ $(build_dir)/lib/libsbiutils.a: $(libsbi-objs-path-y) $(libsbiutils-objs-path-y)
 
 $(platform_build_dir)/lib/libplatsbi.a: $(libsbi-objs-path-y) $(libsbiutils-objs-path-y) $(platform-objs-path-y)
 	$(call compile_ar,$@,$^)
+
+$(sm_build_dir)/%.dep: $(src_dir)/../sm/%.c
+	$(call compile_cc_dep,$@,$<)
+
+$(sm_build_dir)/%.o: $(src_dir)/../sm/%.c
+	$(call compile_cc,$@,$<)
 
 $(build_dir)/%.dep: $(src_dir)/%.c
 	$(call compile_cc_dep,$@,$<)
