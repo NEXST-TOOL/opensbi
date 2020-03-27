@@ -74,11 +74,15 @@
 		PROVIDE(_bss_end = .);
 	}
 
+	. = ALIGN(0x1000); /* Need this to create proper sections */
+
+	PROVIDE(_fw_end = .);
+
 	/* End of the read-write data sections */
 
   /* # Sanctum params */
   /* ================ */
-  . = 0x8001ff00; /* the last page before the payload */
+  . = FW_TEXT_START + FW_ONE_PAGE_TO_PAYLOAD ; /* the last page before the payload */
 
   /* ## manufacturer_keys : */
 
@@ -112,6 +116,3 @@
   PROVIDE( sanctum_sm_signature = . );
   . += 0x40;
 
-	. = ALIGN(0x1000); /* Need this to create proper sections */
-
-	PROVIDE(_fw_end = .);
