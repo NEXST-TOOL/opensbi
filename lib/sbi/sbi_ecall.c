@@ -209,9 +209,7 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 					     args, out_val, &trap);
 	} 
 	else if (extension_id == SBI_KEYSTONE_SM) {
-          sbi_printf("***&*%lx\r\n", regs->a6);
-          ret = sbi_sm_interface(scratch, extension_id, regs, out_val, &trap);
-          sbi_printf("***%x = %lx\r\n", ret,out_val);
+		ret = sbi_sm_interface(scratch, extension_id, regs, out_val, &trap);
     } 
 	else if (extension_id >= SBI_EXT_VENDOR_START &&
 		extension_id <= SBI_EXT_VENDOR_END) {
@@ -239,7 +237,7 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 		if (is_0_1_spec)
 			regs->a0 = ret;
 		else {
-			if (extension_id == SBI_EXT_BASE) 
+			if ( (extension_id == SBI_EXT_BASE) || (extension_id == SBI_KEYSTONE_SM) ) 
 			{
 				regs->a0 = ret;
 				regs->a1 = out_val[0];
