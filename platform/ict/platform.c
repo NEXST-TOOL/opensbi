@@ -108,7 +108,7 @@ static int serve_final_init(bool cold_boot)
 
 static u32 serve_pmp_region_count(u32 hartid)
 {
-	return 1;
+	return 7;
 }
 
 static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
