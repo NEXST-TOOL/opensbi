@@ -117,7 +117,9 @@ static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
 	int ret = 0;
 
 	switch (index) {
-	case 0:
+
+	//set S-MODE region with the lowest priority, leaving PMP1 - PMP6 to secure monitor
+	case 6:
 		*prot	  = PMP_R | PMP_W | PMP_X;
 		*addr	  = 0;
 		*log2size = __riscv_xlen;
