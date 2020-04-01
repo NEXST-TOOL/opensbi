@@ -20,7 +20,10 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_version.h>
 #include <sbi/riscv_asm.h>
+
+#ifdef WITH_SM
 #include <sm_sbi_opensbi.h>
+#endif
 
 #define SBI_ECALL_VERSION_MAJOR 0
 #define SBI_ECALL_VERSION_MINOR 2
@@ -208,9 +211,11 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 		ret = sbi_ecall_base_handler(scratch, extension_id, func_id,
 					     args, out_val, &trap);
 	} 
+#ifdef WITH_SM
 	else if (extension_id == SBI_KEYSTONE_SM) {
 		ret = sbi_sm_interface(scratch, extension_id, regs, out_val, &trap);
     } 
+#endif
 	else if (extension_id >= SBI_EXT_VENDOR_START &&
 		extension_id <= SBI_EXT_VENDOR_END) {
 		ret = sbi_ecall_vendor_ext_handler(scratch, extension_id,
@@ -237,11 +242,18 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 		if (is_0_1_spec)
 			regs->a0 = ret;
 		else {
-			if ( (extension_id == SBI_EXT_BASE) || (extension_id == SBI_KEYSTONE_SM) ) 
+			if (extension_id == SBI_EXT_BASE)
 			{
 				regs->a0 = ret;
 				regs->a1 = out_val[0];
 			}
+#ifdef WITH_SM
+			else if (extension_id == SBI_KEYSTONE_SM)
+			{
+				regs->a0 = ret;
+				regs->a1 = out_val[0];
+			}
+#endif
 			else {
 				regs->a0 = out_val[0];
 				regs->a1 = out_val[1];

@@ -17,7 +17,10 @@
 #include <sbi/sbi_system.h>
 #include <sbi/sbi_timer.h>
 #include <sbi/sbi_version.h>
+
+#ifdef WITH_SM
 #include <sm.h>
+#endif
 
 #define BANNER                                              \
 	"   ____                    _____ ____ _____\n"     \
@@ -110,9 +113,11 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	if (!sbi_platform_has_hart_hotplug(plat))
 		sbi_hart_wake_coldboot_harts(scratch, hartid);
 
-        sbi_printf("Initializing sm...\r\n");
-        sm_init();
-        sbi_printf("sm init done...\r\n");
+#ifdef WITH_SM
+    sbi_printf("Initializing sm...\r\n");
+	sm_init();
+	sbi_printf("sm init done...\r\n");
+#endif
 
 	sbi_hart_mark_available(hartid);
 	sbi_hart_switch_mode(hartid, scratch->next_arg1, scratch->next_addr,
@@ -155,9 +160,12 @@ static void __noreturn init_warmboot(struct sbi_scratch *scratch, u32 hartid)
 		sbi_hart_hang();
 
 	sbi_hart_mark_available(hartid);
-        sbi_printf("Initializing sm...\r\n");
-        sm_init();
-        sbi_printf("sm init done...\r\n");
+	
+#ifdef WITH_SM
+	sbi_printf("Initializing sm...\r\n");
+	sm_init();
+	sbi_printf("sm init done...\r\n");
+#endif
 
 	if (sbi_platform_has_hart_hotplug(plat))
 		/* TODO: To be implemented in-future. */
