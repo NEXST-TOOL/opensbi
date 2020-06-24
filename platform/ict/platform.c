@@ -14,11 +14,10 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_console.h>
 #include <sbi/sbi_platform.h>
+#include <sbi/riscv_locks.h>
 #include <sbi/riscv_io.h>
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/sys/clint.h>
-
-#include "pm_service/pm_svc_main.h"
 
 /* clang-format off */
 
@@ -43,7 +42,23 @@
 
 #define SERVE_EXT_PM		0x09000000
 
+#define PM_SIP_SVC			0xC2000000
+
+#define RV_ARM_IPC_BASE   0x1ff00000
+#define IPC_REQ    ((volatile void *)(RV_ARM_IPC_BASE + 0x0))
+#define IPC_API    ((volatile void *)(RV_ARM_IPC_BASE + 0x4))
+#define IPC_ARG_0  ((volatile void *)(RV_ARM_IPC_BASE + 0x10))
+#define IPC_ARG_1  ((volatile void *)(RV_ARM_IPC_BASE + 0x14))
+#define IPC_ARG_2  ((volatile void *)(RV_ARM_IPC_BASE + 0x18))
+#define IPC_ARG_3  ((volatile void *)(RV_ARM_IPC_BASE + 0x1c))
+#define IPC_RET_0  ((volatile void *)(RV_ARM_IPC_BASE + 0x20))
+#define IPC_RET_1  ((volatile void *)(RV_ARM_IPC_BASE + 0x24))
+#define IPC_RET_2  ((volatile void *)(RV_ARM_IPC_BASE + 0x28))
+#define IPC_RET_3  ((volatile void *)(RV_ARM_IPC_BASE + 0x2c))
+
 static volatile void *uart_base;
+
+static spinlock_t pm_secure_lock;
 
 /* clang-format on */
 
@@ -87,22 +102,13 @@ static int serve_early_init(bool cold_boot)
 		return 0;
 
 	set_uart_base();
+	SPIN_LOCK_INIT(&pm_secure_lock);
 
 	return 0;
 }
 
 static int serve_final_init(bool cold_boot)
 {
-	int rc;
-
-	if (cold_boot) {
-#if SERVE_ECALL_EXT
-		rc = pm_setup();
-		if (rc)
-			return rc;
-#endif
-	}
-
 	return 0;
 }
 
@@ -186,6 +192,31 @@ static int serve_vendor_ext_check(long extid) {
 #else
 	return 0;
 #endif
+}
+
+static int pm_ecall_handler(
+	long funcid,
+	unsigned long *args,
+	unsigned long *out_value
+) {
+
+	spin_lock(&pm_secure_lock);
+
+	writel(PM_SIP_SVC | funcid, IPC_API);
+	writel(args[0], IPC_ARG_0);
+	writel(args[1], IPC_ARG_1);
+	writel(args[2], IPC_ARG_2);
+	writel(args[3], IPC_ARG_3);
+
+	writel(1, IPC_REQ);
+	while (readl(IPC_REQ));
+
+	out_value[0] = readl(IPC_RET_0) | (unsigned long)readl(IPC_RET_1) << 32;
+	out_value[1] = readl(IPC_RET_2) | (unsigned long)readl(IPC_RET_3) << 32;
+
+	spin_unlock(&pm_secure_lock);
+
+	return 0;
 }
 
 static int serve_vendor_ext_provider(
