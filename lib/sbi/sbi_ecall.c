@@ -251,9 +251,7 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 #ifdef WITH_SM
 			else if (extension_id == SBI_KEYSTONE_SM)
 			{
-        if ( (func_id != SBI_SM_RUN_ENCLAVE) && 
-             (func_id != SBI_SM_RESUME_ENCLAVE) )
-          regs->a0 = out_val[0];
+        regs->a0 = out_val[0];
 
         if (func_id == SBI_SM_RUN_ENCLAVE)
           regs->mepc -= 4;
