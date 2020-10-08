@@ -21,10 +21,17 @@
 
 /* clang-format off */
 
+#ifndef SERVE_CLINT_ADDR
 #define SERVE_CLINT_ADDR		0x2000000
+#endif
 
+#ifndef SERVE_PLIC_ADDR
 #define SERVE_PLIC_ADDR			0xc000000
+#endif
+
+#ifndef SERVE_PLIC_NUM_SOURCES
 #define SERVE_PLIC_NUM_SOURCES	16
+#endif
 
 /* UART base address was defined in config.mk */
 #define UART_REG_FIFO		0x30
