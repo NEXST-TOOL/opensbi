@@ -44,9 +44,9 @@
 
 #define SERVE_HARITD_DISABLED		~(SERVE_ENABLED_HART_MASK)
 
-#define SERVE_EXT_PM		0x09000000
+#define SERVE_EXT_PM        0x09000000
 
-#define PM_SIP_SVC			0xC2000000
+#define PM_SIP_SVC          0xC2000000
 
 #define RV_ARM_IPC_BASE   0xf0000000
 #define IPC_REQ    ((volatile void *)(RV_ARM_IPC_BASE + 0x0))
@@ -198,6 +198,7 @@ static int serve_vendor_ext_check(long extid) {
 #endif
 }
 
+#if SERVE_ECALL_EXT
 static int pm_ecall_handler(
 	long funcid,
 	unsigned long *args,
@@ -222,6 +223,7 @@ static int pm_ecall_handler(
 
 	return 0;
 }
+#endif
 
 static int serve_vendor_ext_provider(
 	long extid,
