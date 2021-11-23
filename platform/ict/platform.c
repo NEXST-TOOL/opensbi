@@ -33,12 +33,9 @@
 #define SERVE_PLIC_NUM_SOURCES	16
 #endif
 
-/* UART base address was defined in config.mk */
-#define UART_REG_FIFO		0x30
-#define UART_REG_CH_STAT	0x2C
-
-#define UART_TXFIFO_FULL	(1 << 4)
-#define UART_RXFIFO_EMPTY	(1 << 1)
+/* UART base address was defined in plat/serve_X.mk */
+#define UART_TXFIFO_FULL	(1 << UART_TXFIFO_FULL_BIT)
+#define UART_RXFIFO_EMPTY	(1 << UART_RXFIFO_EMPTY_BIT)
 #define UART_RXFIFO_DATA	0x000000ff
 
 #define SERVE_HART_STACK_SIZE		8192
@@ -89,7 +86,7 @@ void serve_uart_putc(char ch)
 	while (get_reg(UART_REG_CH_STAT) & UART_TXFIFO_FULL)
 		;
 
-	set_reg(ch, UART_REG_FIFO);
+	set_reg(ch, UART_REG_TX_FIFO);
 }
 
 int serve_uart_getc(void)
@@ -97,7 +94,7 @@ int serve_uart_getc(void)
 	u32 ret = get_reg(UART_REG_CH_STAT);
 	if (!(ret & UART_RXFIFO_EMPTY))
 	{
-		ret = get_reg(UART_REG_FIFO);
+		ret = get_reg(UART_REG_RX_FIFO);
 		return ret & UART_RXFIFO_DATA;
 	}
 	return -1;
