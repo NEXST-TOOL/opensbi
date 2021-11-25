@@ -7,6 +7,10 @@
 #   Yisong Chang <changyisong@ict.ac.cn>
 #
 
+# Blobs to build
+FW_TEXT_START=0xB0000000
+
+# platform-specific macro define for platform.c
 platform-genflags-y += -DSERVE_UART0_ADDR=0xFF000000 \
 	-DUART_REG_TX_FIFO=0x30 \
 	-DUART_REG_RX_FIFO=0x30 \
