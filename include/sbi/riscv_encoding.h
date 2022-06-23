@@ -120,8 +120,8 @@
 #define PMP_L				_UL(0x80)
 
 #define PMP_SHIFT			2
-#define PMP_COUNT			16
-
+//#define PMP_COUNT			16
+#define PMP_COUNT                     4
 /* page table entry (PTE) fields */
 #define PTE_V				_UL(0x001) /* Valid */
 #define PTE_R				_UL(0x002) /* Read */

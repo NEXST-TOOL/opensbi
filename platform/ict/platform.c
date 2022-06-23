@@ -19,14 +19,21 @@
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/sys/clint.h>
 
+#define SBI_SERVE_FEATURES     \
+        (SBI_PLATFORM_HAS_TIMER_VALUE | \
+         SBI_PLATFORM_HAS_SCOUNTEREN | \
+         SBI_PLATFORM_HAS_MCOUNTEREN | \
+         SBI_PLATFORM_HAS_MFAULTS_DELEGATION)
+
+
 /* clang-format off */
 
 #ifndef SERVE_CLINT_ADDR
-#define SERVE_CLINT_ADDR		0x2000000
+#define SERVE_CLINT_ADDR		0x38000000
 #endif
 
 #ifndef SERVE_PLIC_ADDR
-#define SERVE_PLIC_ADDR			0xc000000
+#define SERVE_PLIC_ADDR			0x3c000000
 #endif
 
 #ifndef SERVE_PLIC_NUM_SOURCES
@@ -100,6 +107,17 @@ int serve_uart_getc(void)
 	return -1;
 }
 
+static void sbi_Debug_puts(const char *str)
+{
+//        spin_lock(&console_out_lock);
+        while (*str) {
+//                sbi_putc(*str);
+		serve_uart_putc(*str);
+                str++;
+        }
+//        spin_unlock(&console_out_lock);
+}
+
 static int serve_early_init(bool cold_boot)
 {
 	if (!cold_boot)
@@ -107,18 +125,19 @@ static int serve_early_init(bool cold_boot)
 
 	set_uart_base();
 	SPIN_LOCK_INIT(&pm_secure_lock);
-
+	sbi_Debug_puts("\n\rserve_early_init");
 	return 0;
 }
 
 static int serve_final_init(bool cold_boot)
 {
+	sbi_Debug_puts("\n\rserve_final_init");
 	return 0;
 }
 
 static u32 serve_pmp_region_count(u32 hartid)
 {
-	return 7;
+	return 4;
 }
 
 static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
@@ -129,7 +148,7 @@ static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
 	switch (index) {
 
 	//set S-MODE region with the lowest priority, leaving PMP1 - PMP6 to secure monitor
-	case 6:
+	case 0:
 		*prot	  = PMP_R | PMP_W | PMP_X;
 		*addr	  = 0;
 		*log2size = __riscv_xlen;
@@ -147,14 +166,16 @@ static int serve_irqchip_init(bool cold_boot)
 	int rc;
 	u32 hartid = sbi_current_hartid();
 
+	sbi_Debug_puts("\n\rserve_irqchip_init");
 	if (cold_boot) {
+		sbi_Debug_puts("\n\rplic_cold_irqchip_init");
 		rc = plic_cold_irqchip_init(SERVE_PLIC_ADDR,
 						SERVE_PLIC_NUM_SOURCES,
 						SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
-
+	sbi_Debug_puts("\n\rplic_warm_irqchip_init");
 	return plic_warm_irqchip_init(hartid, (hartid) ? (2 * hartid - 1) : 0,
 					  (hartid) ? (2 * hartid) : -1);
 }
@@ -163,25 +184,28 @@ static int serve_ipi_init(bool cold_boot)
 {
 	int rc;
 
+	sbi_Debug_puts("\n\rserve_ipi_init");
 	if (cold_boot) {
+		sbi_Debug_puts("\n\rclint_cold_ipi_init");
 		rc = clint_cold_ipi_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
-
+	sbi_Debug_puts("\n\rclint_warm_ipi_init");
 	return clint_warm_ipi_init();
 }
 
 static int serve_timer_init(bool cold_boot)
 {
 	int rc;
-
+	sbi_Debug_puts("\n\rserve_timer_init");
 	if (cold_boot) {
+		sbi_Debug_puts("\n\rclint_cold_timer_init");
 		rc = clint_cold_timer_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
-
+	sbi_Debug_puts("\n\rclint_warm_timer_init");
 	return clint_warm_timer_init();
 }
 
@@ -267,7 +291,8 @@ const struct sbi_platform platform = {
 	.opensbi_version	= OPENSBI_VERSION,
 	.platform_version	= SBI_PLATFORM_VERSION(0x0, 0x01),
 	.name			= "ICT SERVE",
-	.features		= SBI_PLATFORM_DEFAULT_FEATURES,
+//	.features		= SBI_SERVE_FEATURES,
+        .features               = SBI_PLATFORM_DEFAULT_FEATURES,
 	.hart_count		= SERVE_HART_COUNT,
 	.hart_stack_size	= SERVE_HART_STACK_SIZE,
 	.disabled_hart_mask	= SERVE_HARITD_DISABLED,

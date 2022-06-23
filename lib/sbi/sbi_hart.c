@@ -18,6 +18,44 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_platform.h>
 
+#include <sbi/riscv_io.h>
+#define uart_base (volatile void *)0xE0000000
+/* UART base address was defined in plat/serve_X.mk */
+#define UART_TXFIFO_FULL        (1 << UART_TXFIFO_FULL_BIT)
+#define UART_RXFIFO_EMPTY       (1 << UART_RXFIFO_EMPTY_BIT)
+#define UART_RXFIFO_DATA        0x000000ff
+
+
+static inline void set_reg(u32 num, u32 offset)
+{
+        writel(num, uart_base + offset);
+}
+
+static inline u32 get_reg(u32 offset)
+{
+        return readl(uart_base + offset);
+}
+
+
+static void serve_uart_putc(char ch)
+{
+        while (get_reg(UART_REG_CH_STAT) & UART_TXFIFO_FULL)
+                ;
+
+        set_reg(ch, UART_REG_TX_FIFO);
+}
+
+
+static void sbi_Debug_puts(const char *str)
+{
+        while (*str) {
+                serve_uart_putc(*str);
+                str++;
+        }
+}
+
+
+
 /**
  * Return HART ID of the caller.
  */
@@ -48,7 +86,7 @@ static void mstatus_init(struct sbi_scratch *scratch, u32 hartid)
 		csr_write(CSR_SATP, 0);
 }
 
-static int fp_init(u32 hartid)
+/*static int fp_init(u32 hartid)
 {
 #ifdef __riscv_flen
 	int i;
@@ -66,6 +104,10 @@ static int fp_init(u32 hartid)
 	csr_write(CSR_FCSR, 0);
 #endif
 
+	return 0;
+}*/
+static int fp_init(u32 hartid)
+{
 	return 0;
 }
 
@@ -154,58 +196,78 @@ void sbi_hart_pmp_dump(struct sbi_scratch *scratch)
 	}
 }
 
+/*void sbi_hart_pmp_dump(struct sbi_scratch *scratch)
+{
+
+}*/
+
 static int pmp_init(struct sbi_scratch *scratch, u32 hartid)
 {
 	u32 i, count;
 	unsigned long fw_start, fw_size_log2;
 	ulong prot, addr, log2size;
+	sbi_Debug_puts("\n\rpmp_init 1");
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
-
+	sbi_Debug_puts("\n\rpmp_init 2");
 	if (!sbi_platform_has_pmp(plat))
 		return 0;
-
+	sbi_Debug_puts("\n\rpmp_init 3");
 	fw_size_log2 = log2roundup(scratch->fw_size);
 	fw_start     = scratch->fw_start & ~((1UL << fw_size_log2) - 1UL);
-
+	sbi_Debug_puts("\n\rpmp_init 4");
 	pmp_set(0, 0, fw_start, fw_size_log2);
-
+	sbi_Debug_puts("\n\rpmp_init 5");
 	count = sbi_platform_pmp_region_count(plat, hartid);
 	if ((PMP_COUNT - 1) < count)
 		count = (PMP_COUNT - 1);
-
+	sbi_Debug_puts("\n\rpmp_init 6");
 	for (i = 0; i < count; i++) {
 		if (sbi_platform_pmp_region_info(plat, hartid, i, &prot, &addr,
 						 &log2size))
 			continue;
 		pmp_set(i + 1, prot, addr, log2size);
 	}
-
+	sbi_Debug_puts("\n\rpmp_init 7");
 	return 0;
 }
+/*static int pmp_init(struct sbi_scratch *scratch, u32 hartid)
+{
+	sbi_Debug_puts("\n\rskip: pmp_init");
+	return 0;
+}*/
 
 static unsigned long trap_info_offset;
 
 int sbi_hart_init(struct sbi_scratch *scratch, u32 hartid, bool cold_boot)
 {
 	int rc;
-
+	sbi_Debug_puts("\n\rsbi_hart_init start:");
 	if (cold_boot) {
 		trap_info_offset = sbi_scratch_alloc_offset(__SIZEOF_POINTER__,
 							    "HART_TRAP_INFO");
 		if (!trap_info_offset)
+		{
+			sbi_Debug_puts("\n\r SBI_ENOMEM");
 			return SBI_ENOMEM;
+		}
 	}
-
+	sbi_Debug_puts("\n\rinto: mstatus_init");
 	mstatus_init(scratch, hartid);
-
+	sbi_Debug_puts("\n\rinto: fp_init");
 	rc = fp_init(hartid);
 	if (rc)
+	{
+		sbi_Debug_puts("\n\rfp_init error");
 		return rc;
-
+	}
+	sbi_Debug_puts("\n\rinto: delegate_traps");
 	rc = delegate_traps(scratch, hartid);
 	if (rc)
+	{
+		sbi_Debug_puts("\n\rdelegate_traps error");
 		return rc;
-
+	}
+	sbi_Debug_puts("\n\rskip: pmp_init");
 	return pmp_init(scratch, hartid);
 }
 
@@ -303,6 +365,9 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 
 	register unsigned long a0 asm("a0") = arg0;
 	register unsigned long a1 asm("a1") = arg1;
+	sbi_Debug_puts("\n\rsbi_hart_hang before mret for Test!");
+	sbi_hart_hang();
+	
 	__asm__ __volatile__("mret" : : "r"(a0), "r"(a1));
 	__builtin_unreachable();
 }
