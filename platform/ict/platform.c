@@ -137,7 +137,7 @@ static int serve_final_init(bool cold_boot)
 
 static u32 serve_pmp_region_count(u32 hartid)
 {
-	return 4;
+	return 3;
 }
 
 static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
@@ -147,8 +147,8 @@ static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
 
 	switch (index) {
 
-	//set S-MODE region with the lowest priority, leaving PMP1 - PMP6 to secure monitor
-	case 0:
+	//set S-MODE region with the lowest priority, leaving PMP1 - PMP2 to secure monitor
+	case 2:
 		*prot	  = PMP_R | PMP_W | PMP_X;
 		*addr	  = 0;
 		*log2size = __riscv_xlen;
