@@ -267,7 +267,6 @@ int sbi_hart_init(struct sbi_scratch *scratch, u32 hartid, bool cold_boot)
 		sbi_Debug_puts("\n\rdelegate_traps error");
 		return rc;
 	}
-	sbi_Debug_puts("\n\rskip: pmp_init");
 	return pmp_init(scratch, hartid);
 }
 
