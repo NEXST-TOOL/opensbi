@@ -172,11 +172,11 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	sbi_printf("\r\nscratch->next_addr: %lx",scratch->next_addr);
         sbi_printf("\r\nscratch->next_mode: %lu",scratch->next_mode);
         sbi_printf("\r\nscratch->next_arg1: %lu",scratch->next_arg1);
-        sbi_printf("\r\nsbi_hart_hang here...");
+        //sbi_printf("\r\nsbi_hart_hang here...");
 	for (int i=0; i<6; ++i)
 		sbi_printf("\r\n ");
 	//sbi_hart_hang();
-	
+	sbi_printf("\r\n\"hartid\" into sbi_hart_switch_mode() :%x",hartid);	
 	sbi_hart_switch_mode(hartid, scratch->next_arg1, scratch->next_addr,
 			     scratch->next_mode, FALSE);
 }

@@ -310,7 +310,8 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 #else
 	unsigned long val;
 #endif
-
+	sbi_printf("\n\rarg0:0x%lx",arg0);
+	sbi_printf("\n\rarg1:0x%lx",arg1);
 	switch (next_mode) {
 	case PRV_M:
 		break;
@@ -362,11 +363,39 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 		csr_write(CSR_UIE, 0);
 	}
 
-	register unsigned long a0 asm("a0") = arg0;
-	register unsigned long a1 asm("a1") = arg1;
-	sbi_Debug_puts("\n\rsbi_hart_hang before mret for Test!");
-//	sbi_hart_hang();
+	//register unsigned long a0 asm("a0") = arg0;
+	//register unsigned long a1 asm("a1") = arg1;
+
+	sbi_Debug_puts("\n\rBefore mret, print some CSRs:");
+
+	sbi_printf("\n\rCSR_Read: 0x%lx - CSR_mhartid\n\r",csr_read(CSR_MHARTID));
+
+	sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MSTATUS",csr_read(CSR_MSTATUS));	
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_SSTATUS",csr_read(CSR_SSTATUS));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MSCRATCH",csr_read(CSR_MSCRATCH));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_SSCRATCH",csr_read(CSR_SSCRATCH));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_STVEC",csr_read(CSR_STVEC));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MIE",csr_read(CSR_MIE));
+	sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MIP",csr_read(CSR_MIP));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MISA",csr_read(CSR_MISA));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MTVEC",csr_read(CSR_MTVEC));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_STVEC",csr_read(CSR_STVEC));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MEDELEG",csr_read(CSR_MEDELEG));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MCOUNTEREN",csr_read(CSR_MCOUNTEREN));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_SCOUNTEREN",csr_read(CSR_SCOUNTEREN));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_PMPCFG0",csr_read(CSR_PMPCFG0));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MEPC",csr_read(CSR_MEPC));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MCAUSE",csr_read(CSR_MCAUSE));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MTVAL",csr_read(CSR_MTVAL));
+        
+	//sbi_printf("\n\ra0:0x%lx",a0);
+	//sbi_printf("\n\ra1:0x%lx",a1);
+	//sbi_printf("\n\rCSR_Read: 0x%lx - 
+	sbi_hart_hang();
 	
+        register unsigned long a0 asm("a0") = arg0;
+        register unsigned long a1 asm("a1") = arg1;
+
 	__asm__ __volatile__("mret" : : "r"(a0), "r"(a1));
 	__builtin_unreachable();
 }
