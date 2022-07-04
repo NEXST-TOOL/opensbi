@@ -125,13 +125,13 @@ static int serve_early_init(bool cold_boot)
 
 	set_uart_base();
 	SPIN_LOCK_INIT(&pm_secure_lock);
-	sbi_Debug_puts("\n\rserve_early_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_early_init");
 	return 0;
 }
 
 static int serve_final_init(bool cold_boot)
 {
-	sbi_Debug_puts("\n\rserve_final_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_final_init");
 	return 0;
 }
 
@@ -166,16 +166,16 @@ static int serve_irqchip_init(bool cold_boot)
 	int rc;
 	u32 hartid = sbi_current_hartid();
 
-	sbi_Debug_puts("\n\rserve_irqchip_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_irqchip_init()");
 	if (cold_boot) {
-		sbi_Debug_puts("\n\rplic_cold_irqchip_init");
+		sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_irqchip_init: plic_cold_irqchip_init");
 		rc = plic_cold_irqchip_init(SERVE_PLIC_ADDR,
 						SERVE_PLIC_NUM_SOURCES,
 						SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
-	sbi_Debug_puts("\n\rplic_warm_irqchip_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_irqchip_init: plic_warm_irqchip_init");
 	return plic_warm_irqchip_init(hartid, (hartid) ? (2 * hartid - 1) : 0,
 					  (hartid) ? (2 * hartid) : -1);
 }
@@ -184,28 +184,28 @@ static int serve_ipi_init(bool cold_boot)
 {
 	int rc;
 
-	sbi_Debug_puts("\n\rserve_ipi_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_ipi_init()");
 	if (cold_boot) {
-		sbi_Debug_puts("\n\rclint_cold_ipi_init");
+		sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_ipi_init: clint_cold_ipi_init");
 		rc = clint_cold_ipi_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
-	sbi_Debug_puts("\n\rclint_warm_ipi_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_ipi_init: clint_warm_ipi_init");
 	return clint_warm_ipi_init();
 }
 
 static int serve_timer_init(bool cold_boot)
 {
 	int rc;
-	sbi_Debug_puts("\n\rserve_timer_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_timer_init");
 	if (cold_boot) {
-		sbi_Debug_puts("\n\rclint_cold_timer_init");
+		sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_timer_init(): clint_cold_timer_init");
 		rc = clint_cold_timer_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
 		if (rc)
 			return rc;
 	}
-	sbi_Debug_puts("\n\rclint_warm_timer_init");
+	sbi_Debug_puts("\n\rplatform/ict/platform.c: serve_timer_init(): clint_warm_timer_init");
 	return clint_warm_timer_init();
 }
 

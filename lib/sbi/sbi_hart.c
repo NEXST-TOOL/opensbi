@@ -241,7 +241,7 @@ static unsigned long trap_info_offset;
 int sbi_hart_init(struct sbi_scratch *scratch, u32 hartid, bool cold_boot)
 {
 	int rc;
-	sbi_Debug_puts("\n\rsbi_hart_init start:");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_hart.c: sbi_hart_init: sbi_hart_init start:");
 	if (cold_boot) {
 		trap_info_offset = sbi_scratch_alloc_offset(__SIZEOF_POINTER__,
 							    "HART_TRAP_INFO");
@@ -251,16 +251,16 @@ int sbi_hart_init(struct sbi_scratch *scratch, u32 hartid, bool cold_boot)
 			return SBI_ENOMEM;
 		}
 	}
-	sbi_Debug_puts("\n\rinto: mstatus_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_hart.c: sbi_hart_init: into: mstatus_init");
 	mstatus_init(scratch, hartid);
-	sbi_Debug_puts("\n\rinto: fp_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_hart.c: sbi_hart_init: into: fp_init");
 	rc = fp_init(hartid);
 	if (rc)
 	{
 		sbi_Debug_puts("\n\rfp_init error");
 		return rc;
 	}
-	sbi_Debug_puts("\n\rinto: delegate_traps");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_hart.c: sbi_hart_init: into: delegate_traps");
 	rc = delegate_traps(scratch, hartid);
 	if (rc)
 	{
@@ -391,7 +391,7 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 	//sbi_printf("\n\ra0:0x%lx",a0);
 	//sbi_printf("\n\ra1:0x%lx",a1);
 	//sbi_printf("\n\rCSR_Read: 0x%lx - 
-	sbi_hart_hang();
+	//	sbi_hart_hang();
 	
         register unsigned long a0 asm("a0") = arg0;
         register unsigned long a1 asm("a1") = arg1;

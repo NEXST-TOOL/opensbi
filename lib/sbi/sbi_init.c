@@ -116,48 +116,48 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 {
 	int rc;
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
-	sbi_Debug_puts("\n\rinto: init_coldboot: sbi_system_early_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot: sbi_system_early_init");
 	rc = sbi_system_early_init(scratch, TRUE);
 	if (rc)
 	{
 		sbi_Debug_puts("\n\r rc=1,hang");
 		sbi_hart_hang();
 	}
-	sbi_Debug_puts("\n\rinto: init_coldboot: sbi_hart_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot: sbi_hart_init");
 	rc = sbi_hart_init(scratch, hartid, TRUE);
 	if (rc)
 	{
 		sbi_Debug_puts("\n\rsbi_hart_init rc=1,hang");
 		sbi_hart_hang();
 	}
-	sbi_Debug_puts("\n\rinto: init_coldboot:  sbi_console_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot:  sbi_console_init");
 	rc = sbi_console_init(scratch);
 	if (rc)
 		sbi_hart_hang();
-	sbi_Debug_puts("\n\rinto: init_coldboot:  sbi_platform_irqchip_init");	
+	sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot:  sbi_platform_irqchip_init");	
 	rc = sbi_platform_irqchip_init(plat, TRUE);
 	if (rc)
 		sbi_hart_hang();
-	sbi_Debug_puts("\n\rinto: init_coldboot:  sbi_ipi_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot:  sbi_ipi_init");
 	rc = sbi_ipi_init(scratch, TRUE);
 	if (rc)
 		sbi_hart_hang();
-	sbi_Debug_puts("\n\rinto: init_coldboot:  sbi_timer_init");
+	sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot(): sbi_timer_init()");
 	rc = sbi_timer_init(scratch, TRUE);
 	if (rc)
 		sbi_hart_hang();
-        sbi_Debug_puts("\n\rinto: init_coldboot:  sbi_system_final_init");
+        sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot:  sbi_system_final_init");
 	rc = sbi_system_final_init(scratch, TRUE);
 	if (rc)
 		sbi_hart_hang();
-        sbi_Debug_puts("\n\rinto: init_coldboot: sbi_boot_prints");
+        sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot: sbi_boot_prints");
 	if (!(scratch->options & SBI_SCRATCH_NO_BOOT_PRINTS))
 		sbi_boot_prints(scratch, hartid);
 //        sbi_Debug_puts("\n\rinto: init_coldboot: sbi_hart_wake_coldboot_harts");
 //	sbi_printf("\ninto: init_coldboot: sbi_hart_wake_coldboot_harts");
 	if (!sbi_platform_has_hart_hotplug(plat))
 	{
-		sbi_Debug_puts("\n\rinto: init_coldboot: sbi_hart_wake_coldboot_harts");
+		sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: init_coldboot: sbi_hart_wake_coldboot_harts");
 		sbi_hart_wake_coldboot_harts(scratch, hartid);
 	}
 
@@ -264,12 +264,12 @@ void __noreturn sbi_init(struct sbi_scratch *scratch)
 
 	if (coldboot)
 	{
-		sbi_Debug_puts("\n\rinto: init_coldboot ... ");
+		sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: into: init_coldboot ... ");
 		init_coldboot(scratch, hartid);
 	}
 	else
 	{
-                sbi_Debug_puts("\n\rinto: init_warmboot ... ");
+                sbi_Debug_puts("\n\rlib/sbi/sbi_init.c: into: init_warmboot ... ");
 		init_warmboot(scratch, hartid);
 	}
 }

@@ -13,6 +13,43 @@
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_timer.h>
 
+#include <sbi/riscv_io.h>
+#define uart_base (volatile void *)0xE0000000
+/* UART base address was defined in plat/serve_X.mk */
+#define UART_TXFIFO_FULL        (1 << UART_TXFIFO_FULL_BIT)
+#define UART_RXFIFO_EMPTY       (1 << UART_RXFIFO_EMPTY_BIT)
+#define UART_RXFIFO_DATA        0x000000ff
+
+
+static inline void set_reg(u32 num, u32 offset)
+{
+        writel(num, uart_base + offset);
+}
+
+static inline u32 get_reg(u32 offset)
+{
+        return readl(uart_base + offset);
+}
+
+
+static void serve_uart_putc(char ch)
+{
+        while (get_reg(UART_REG_CH_STAT) & UART_TXFIFO_FULL)
+                ;
+
+        set_reg(ch, UART_REG_TX_FIFO);
+}
+
+
+static void sbi_Debug_puts(const char *str)
+{
+        while (*str) {
+                serve_uart_putc(*str);
+                str++;
+        }
+}
+
+
 static unsigned long time_delta_off;
 
 #if __riscv_xlen == 32
@@ -96,6 +133,7 @@ void sbi_timer_process(struct sbi_scratch *scratch)
 
 int sbi_timer_init(struct sbi_scratch *scratch, bool cold_boot)
 {
+	sbi_Debug_puts("\n\rlib/sbi/sbi_timer.c: sbi_timer_init()");
 	u64 *time_delta;
 
 	if (cold_boot) {
@@ -110,6 +148,6 @@ int sbi_timer_init(struct sbi_scratch *scratch, bool cold_boot)
 
 	time_delta = sbi_scratch_offset_ptr(scratch, time_delta_off);
 	*time_delta = 0;
-
+	sbi_Debug_puts("\n\rlib/sbi/sbi_timer.c: sbi_platform_timer_init(sbi_platform_ptr(scratch), cold_boot);");
 	return sbi_platform_timer_init(sbi_platform_ptr(scratch), cold_boot);
 }
