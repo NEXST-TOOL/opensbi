@@ -37,7 +37,7 @@
 #endif
 
 #ifndef SERVE_PLIC_NUM_SOURCES
-#define SERVE_PLIC_NUM_SOURCES	16
+#define SERVE_PLIC_NUM_SOURCES	3
 #endif
 
 /* UART base address was defined in plat/serve_X.mk */
