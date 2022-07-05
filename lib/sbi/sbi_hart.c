@@ -203,31 +203,39 @@ void sbi_hart_pmp_dump(struct sbi_scratch *scratch)
 
 static int pmp_init(struct sbi_scratch *scratch, u32 hartid)
 {
-	u32 i, count;
-	unsigned long fw_start, fw_size_log2;
-	ulong prot, addr, log2size;
-	sbi_Debug_puts("\n\rpmp_init 1");
+//	u32 i, count;
+//	unsigned long fw_start, fw_size_log2;
+//	ulong prot, addr, log2size;
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
-	sbi_Debug_puts("\n\rpmp_init 2");
 	if (!sbi_platform_has_pmp(plat))
 		return 0;
-	sbi_Debug_puts("\n\rpmp_init 3");
-	fw_size_log2 = log2roundup(scratch->fw_size);
-	fw_start     = scratch->fw_start & ~((1UL << fw_size_log2) - 1UL);
-	sbi_Debug_puts("\n\rpmp_init 4");
-	pmp_set(0, 0, fw_start, fw_size_log2);
-	sbi_Debug_puts("\n\rpmp_init 5");
-	count = sbi_platform_pmp_region_count(plat, hartid);
-	if ((PMP_COUNT - 1) < count)
-		count = (PMP_COUNT - 1);
-	sbi_Debug_puts("\n\rpmp_init 6");
-	for (i = 0; i < count; i++) {
-		if (sbi_platform_pmp_region_info(plat, hartid, i, &prot, &addr,
-						 &log2size))
-			continue;
-		pmp_set(i + 1, prot, addr, log2size);
-	}
-	sbi_Debug_puts("\n\rpmp_init 7");
+//	fw_size_log2 = log2roundup(scratch->fw_size);
+//	fw_start     = scratch->fw_start & ~((1UL << fw_size_log2) - 1UL);
+//	pmp_set(0, 0, fw_start, fw_size_log2);
+//	count = sbi_platform_pmp_region_count(plat, hartid);
+//	if ((PMP_COUNT - 1) < count)
+//		count = (PMP_COUNT - 1);
+
+//	for (i = 0; i < count; i++) {
+//		if (sbi_platform_pmp_region_info(plat, hartid, i, &prot, &addr,
+//						 &log2size))
+//			continue;
+//		pmp_set(i + 1, prot, addr, log2size);
+//	}
+	unsigned long pmpaddr1=0,pmpaddr2=0,pmpaddr3=0,pmpaddr0=0,pmpcfg0=0;
+	pmpaddr0 = (uintptr_t)0x50000000 >> PMP_SHIFT;
+	pmpaddr1 = (uintptr_t)0x50014000 >> PMP_SHIFT;
+	pmpcfg0  = PMP_A_TOR << 8;
+	pmpaddr2 = -1UL;
+	pmpaddr3 = 0;
+	pmpcfg0  |= (PMP_A_NAPOT | PMP_R | PMP_W | PMP_X) << 16;
+        csr_write_num(CSR_PMPADDR0, pmpaddr0);
+	csr_write_num(CSR_PMPADDR1, pmpaddr1);
+	csr_write_num(CSR_PMPADDR2, pmpaddr2);
+	csr_write_num(CSR_PMPADDR3, pmpaddr3);
+        csr_write_num(CSR_PMPCFG0, pmpcfg0);
+
+	
 	return 0;
 }
 /*static int pmp_init(struct sbi_scratch *scratch, u32 hartid)
@@ -384,6 +392,10 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MCOUNTEREN",csr_read(CSR_MCOUNTEREN));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_SCOUNTEREN",csr_read(CSR_SCOUNTEREN));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_PMPCFG0",csr_read(CSR_PMPCFG0));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_PMPADDR0",csr_read(CSR_PMPADDR0));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_PMPADDR1",csr_read(CSR_PMPADDR1));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_PMPADDR2",csr_read(CSR_PMPADDR2));
+        sbi_printf("\n\rCSR_Read: 0x%lx - CSR_PMPADDR3",csr_read(CSR_PMPADDR3));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MEPC",csr_read(CSR_MEPC));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MCAUSE",csr_read(CSR_MCAUSE));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MTVAL",csr_read(CSR_MTVAL));
