@@ -387,7 +387,9 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MEPC",csr_read(CSR_MEPC));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MCAUSE",csr_read(CSR_MCAUSE));
         sbi_printf("\n\rCSR_Read: 0x%lx - CSR_MTVAL",csr_read(CSR_MTVAL));
-        
+
+	for(int i=0;i<50;i++)
+		sbi_printf("\n\r %d",i);        
 	//sbi_printf("\n\ra0:0x%lx",a0);
 	//sbi_printf("\n\ra1:0x%lx",a1);
 	//sbi_printf("\n\rCSR_Read: 0x%lx - 
