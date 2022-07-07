@@ -50,7 +50,7 @@ static void mstatus_init(struct sbi_scratch *scratch, u32 hartid)
 
 static int fp_init(u32 hartid)
 {
-#ifdef __riscv_flen
+/*#ifdef __riscv_flen
 	int i;
 #endif
 
@@ -65,7 +65,7 @@ static int fp_init(u32 hartid)
 		init_fp_reg(i);
 	csr_write(CSR_FCSR, 0);
 #endif
-
+*/
 	return 0;
 }
 
@@ -121,7 +121,7 @@ unsigned long log2roundup(unsigned long x)
 
 void sbi_hart_pmp_dump(struct sbi_scratch *scratch)
 {
-	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
+/*	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 	unsigned long prot, addr, size, l2l;
 	unsigned int i;
 
@@ -151,12 +151,12 @@ void sbi_hart_pmp_dump(struct sbi_scratch *scratch)
 		if (prot & PMP_X)
 			sbi_printf(",X");
 		sbi_printf(")\n");
-	}
+	}*/
 }
 
 static int pmp_init(struct sbi_scratch *scratch, u32 hartid)
 {
-	u32 i, count;
+/*	u32 i, count;
 	unsigned long fw_start, fw_size_log2;
 	ulong prot, addr, log2size;
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
@@ -179,7 +179,7 @@ static int pmp_init(struct sbi_scratch *scratch, u32 hartid)
 			continue;
 		pmp_set(i + 1, prot, addr, log2size);
 	}
-
+*/
 	return 0;
 }
 

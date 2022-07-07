@@ -21,9 +21,9 @@
 
 /* clang-format off */
 
-#define SERVE_CLINT_ADDR		0x2000000
+#define SERVE_CLINT_ADDR		0x38000000
 
-#define SERVE_PLIC_ADDR			0xc000000
+#define SERVE_PLIC_ADDR			0x3C000000
 #define SERVE_PLIC_NUM_SOURCES	16
 
 /* UART base address was defined in config.mk */
@@ -193,7 +193,7 @@ static int serve_vendor_ext_check(long extid) {
 	return 0;
 #endif
 }
-
+#if SERVE_ECALL_EXT
 static int pm_ecall_handler(
 	long funcid,
 	unsigned long *args,
@@ -218,7 +218,7 @@ static int pm_ecall_handler(
 
 	return 0;
 }
-
+#endif
 static int serve_vendor_ext_provider(
 	long extid,
 	long funcid,
