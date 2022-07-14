@@ -13,6 +13,7 @@ platform-cflags-y = -DSMM_BASE=$(FW_TEXT_START) -DSMM_SIZE=$(FW_PAYLOAD_OFFSET)
 platform-asflags-y =
 platform-ldflags-y =
 
+PLATFORM_RISCV_ISA = rv64imacsu
 # Blobs to build
 ifeq ($(SERVE_PLAT),r)
 FW_TEXT_START=0x50000000
