@@ -89,6 +89,17 @@
 #define GET_F64_RS2C(insn, regs) (GET_F64_REG(insn, 2, regs))
 #define GET_F64_RS2S(insn, regs) (GET_F64_REG(RVC_RS2S(insn), 0, regs))
 
+#else
+
+//#define SET_FS_DIRTY() set_csr(mstatus, MSTATUS_FS)
+#define SET_FS_DIRTY() csr_write(CSR_MSTATUS, MSTATUS_FS)
+
+#define GET_F64_REG(insn, pos, regs) (*(int64_t*)((void*)((regs) + 32) + (SHIFT_RIGHT(insn, (pos)-3) & 0xf8)))
+#define SET_F64_REG(insn, pos, regs, val) (GET_F64_REG(insn, pos, regs) = (val))
+#define SET_F64_RD(insn, regs, val) (SET_F64_REG(insn, 7, regs, val), SET_FS_DIRTY())
+
+
+
 #endif
 
 #endif

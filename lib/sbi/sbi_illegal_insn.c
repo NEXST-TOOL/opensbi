@@ -15,7 +15,15 @@
 #include <sbi/sbi_illegal_insn.h>
 #include <sbi/sbi_trap.h>
 #include <sbi/sbi_unpriv.h>
+#include <sbi/sbi_console.h>
 
+#include <sbi/riscv_fp.h>
+
+#define MATCH_FLD 0x3007
+#define MASK_FLD  0x707f
+
+#define MATCH_FMV_D_X 0xf2000053
+#define MASK_FMV_D_X  0xfff0707f
 typedef int (*illegal_insn_func)(ulong insn, u32 hartid, ulong mcause,
 				 struct sbi_trap_regs *regs,
 				 struct sbi_scratch *scratch);
@@ -29,7 +37,6 @@ static int truly_illegal_insn(ulong insn, u32 hartid, ulong mcause,
 	trap.epc = regs->mepc;
 	trap.cause = mcause;
 	trap.tval = insn;
-
 	return sbi_trap_redirect(regs, &trap, scratch);
 }
 
@@ -96,9 +103,47 @@ static int system_opcode_insn(ulong insn, u32 hartid, ulong mcause,
 	return 0;
 }
 
+static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
+                              struct sbi_trap_regs *regs,
+                              struct sbi_scratch *scratch)
+{
+        struct sbi_trap_info trap;
+
+        trap.epc = regs->mepc;
+        trap.cause = mcause;
+        trap.tval = insn;
+
+
+        if(csr_read(CSR_MSTATUS) & MSTATUS_FS)
+        {
+                if((insn & MASK_FLD) == MATCH_FLD)
+                {
+                        uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
+                        SET_F64_RD(insn, regs, sbi_load_u64((void *)addr, scratch, &trap));
+			regs->mepc = regs->mepc + 4;
+                        return 0;
+                }
+		if((insn & MASK_FMV_D_X) == MATCH_FMV_D_X)
+		{
+                        sbi_printf("\n\r\tmpec: \t\t0x%lx",csr_read(CSR_MEPC));
+                        sbi_printf("\n\r\tmtval: \t\t0x%lx",csr_read(CSR_MTVAL));
+                        sbi_printf("\n\r\tmstatus: \t\t0x%lx",csr_read(CSR_MSTATUS));
+                        sbi_printf("\n\r\tmcause: \t\t0x%lx",csr_read(CSR_MCAUSE));
+                        //sbi_printf("\n\r\tmtinst: \t\t0x%lx",csr_read(CSR_MTINST));
+                        sbi_printf("\n\r\tmip:   \t\t0x%lx",csr_read(CSR_MIP));
+			while(1);
+
+		}
+        }
+                        return truly_illegal_insn(insn, hartid, mcause, regs,
+                                                scratch);
+
+
+}
+
 static illegal_insn_func illegal_insn_table[32] = {
 	truly_illegal_insn, /* 0 */
-	truly_illegal_insn, /* 1 */
+	sbi_emulate_float_load,//truly_illegal_insn, /* 1 */
 	truly_illegal_insn, /* 2 */
 	truly_illegal_insn, /* 3 */
 	truly_illegal_insn, /* 4 */
