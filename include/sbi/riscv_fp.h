@@ -96,6 +96,10 @@
 
 #define GET_F64_REG(insn, pos, regs) (*(int64_t*)((void*)((regs) + 32) + (SHIFT_RIGHT(insn, (pos)-3) & 0xf8)))
 #define SET_F64_REG(insn, pos, regs, val) (GET_F64_REG(insn, pos, regs) = (val))
+#define GET_F32_REG(insn, pos, regs) (*(int32_t*)&GET_F64_REG(insn, pos, regs))
+#define SET_F32_REG(insn, pos, regs, val) (GET_F32_REG(insn, pos, regs) = (val))
+
+#define SET_F32_RD(insn, regs, val) (SET_F32_REG(insn, 7, regs, val), SET_FS_DIRTY())
 #define SET_F64_RD(insn, regs, val) (SET_F64_REG(insn, 7, regs, val), SET_FS_DIRTY())
 
 

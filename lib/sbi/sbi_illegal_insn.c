@@ -24,6 +24,7 @@
 
 #define MATCH_FMV_D_X 0xf2000053
 #define MASK_FMV_D_X  0xfff0707f
+
 typedef int (*illegal_insn_func)(ulong insn, u32 hartid, ulong mcause,
 				 struct sbi_trap_regs *regs,
 				 struct sbi_scratch *scratch);
@@ -120,20 +121,9 @@ static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
                 {
                         uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
                         SET_F64_RD(insn, regs, sbi_load_u64((void *)addr, scratch, &trap));
-			regs->mepc = regs->mepc + 4;
-                        return 0;
+                        regs->mepc = regs->mepc + 4;
+			return 0;
                 }
-		if((insn & MASK_FMV_D_X) == MATCH_FMV_D_X)
-		{
-                        sbi_printf("\n\r\tmpec: \t\t0x%lx",csr_read(CSR_MEPC));
-                        sbi_printf("\n\r\tmtval: \t\t0x%lx",csr_read(CSR_MTVAL));
-                        sbi_printf("\n\r\tmstatus: \t\t0x%lx",csr_read(CSR_MSTATUS));
-                        sbi_printf("\n\r\tmcause: \t\t0x%lx",csr_read(CSR_MCAUSE));
-                        //sbi_printf("\n\r\tmtinst: \t\t0x%lx",csr_read(CSR_MTINST));
-                        sbi_printf("\n\r\tmip:   \t\t0x%lx",csr_read(CSR_MIP));
-			while(1);
-
-		}
         }
                         return truly_illegal_insn(insn, hartid, mcause, regs,
                                                 scratch);
@@ -176,13 +166,42 @@ static illegal_insn_func illegal_insn_table[32] = {
 	truly_illegal_insn  /* 31 */
 };
 
+int sbi_emulate_float_load_C(ulong insn, u32 hartid, ulong mcause,
+				struct sbi_trap_regs *regs,
+				struct sbi_scratch *scratch)
+{
+
+  struct sbi_trap_info trap;
+
+  regs->mepc = regs->mepc + 2;
+
+  trap.epc = regs->mepc;
+  trap.cause = mcause;
+  trap.tval = insn;
+
+  if ((insn & INSN_MASK_C_FLD) == INSN_MATCH_C_FLD) {
+    uintptr_t addr = GET_RS1S(insn, regs) + RVC_LD_IMM(insn);
+    SET_F64_RD(RVC_RS2S(insn) << SH_RD, regs, sbi_load_u64((void *)addr, scratch, &trap));
+    return 0;
+  } 
+  else if ((insn & INSN_MASK_C_FLDSP) == INSN_MATCH_C_FLDSP) {
+    uintptr_t addr = GET_SP(regs) + RVC_LDSP_IMM(insn);
+    SET_F64_RD(insn, regs, sbi_load_u64((void *)addr, scratch, &trap));
+    return 0;
+  } 
+  else
+  	return truly_illegal_insn(insn, hartid, mcause, regs, scratch);
+}
+
+
+
 int sbi_illegal_insn_handler(u32 hartid, ulong mcause,
 			     struct sbi_trap_regs *regs,
 			     struct sbi_scratch *scratch)
 {
 	ulong insn = csr_read(CSR_MTVAL);
 	struct sbi_trap_info uptrap;
-
+	
 	if (unlikely((insn & 3) != 3)) {
 		if (insn == 0) {
 			insn = sbi_get_insn(regs->mepc, scratch, &uptrap);
@@ -193,8 +212,15 @@ int sbi_illegal_insn_handler(u32 hartid, ulong mcause,
 			}
 		}
 		if ((insn & 3) != 3)
-			return truly_illegal_insn(insn, hartid, mcause, regs,
-						  scratch);
+		{
+			if ( ((insn & INSN_MASK_C_FLD) == INSN_MATCH_C_FLD) || ((insn & INSN_MASK_C_FLDSP) == INSN_MATCH_C_FLDSP) )
+			{
+				return sbi_emulate_float_load_C(insn, hartid, mcause, regs, scratch);
+			}
+			else
+				return truly_illegal_insn(insn, hartid, mcause, regs,
+							  scratch);
+		}
 	}
 
 	return illegal_insn_table[(insn & 0x7c) >> 2](insn, hartid, mcause,
