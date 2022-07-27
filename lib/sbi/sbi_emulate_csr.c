@@ -15,6 +15,7 @@
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_timer.h>
 #include <sbi/sbi_trap.h>
+#include <sbi/riscv_fp.h>
 
 int sbi_emulate_csr_read(int csr_num, u32 hartid, struct sbi_trap_regs *regs,
 			 struct sbi_scratch *scratch, ulong *csr_val)
@@ -30,7 +31,6 @@ int sbi_emulate_csr_read(int csr_num, u32 hartid, struct sbi_trap_regs *regs,
 
 	if (prev_mode == PRV_U)
 		cen = csr_read(CSR_SCOUNTEREN);
-
 	switch (csr_num) {
 	case CSR_HTIMEDELTA:
 		if (prev_mode == PRV_S && !virt)
@@ -107,12 +107,35 @@ int sbi_emulate_csr_read(int csr_num, u32 hartid, struct sbi_trap_regs *regs,
 	default:
 		ret = SBI_ENOTSUPP;
 		break;
-	};
+
+// Add Float Emulate:
+	case CSR_FRM:
+		if ((regs->mstatus & MSTATUS_FS) == 0)
+			return -1;
+		//*csr_val = csr_read(CSR_FRM);
+		*csr_val = GET_FRM();
+		break;
+	case CSR_FFLAGS:
+                if ((regs->mstatus & MSTATUS_FS) == 0)
+                        return -1;
+		//*csr_val = csr_read(CSR_FFLAGS);
+		*csr_val = GET_FFLAGS();
+		break;
+	case CSR_FCSR:
+		if ((regs->mstatus & MSTATUS_FS) == 0)
+                        return -1;
+                //*csr_val = csr_read(CSR_FCSR);
+		*csr_val = GET_FCSR();
+		break;
+        };
+
 
 	if (ret)
+	{
+		sbi_printf("\n\r\n\rcsr_num: 0x%x \n\r\n\r",csr_num);
 		sbi_dprintf(scratch, "%s: hartid%d: invalid csr_num=0x%x\n",
 			    __func__, hartid, csr_num);
-
+	}
 	return ret;
 }
 
@@ -172,6 +195,18 @@ int sbi_emulate_csr_write(int csr_num, u32 hartid, struct sbi_trap_regs *regs,
 	case CSR_MHPMEVENT4:
 		csr_write(CSR_MHPMEVENT4, csr_val);
 		break;
+
+// Add Float Emulate:
+	case CSR_FRM:
+		SET_FRM(csr_val);//csr_write(CSR_FRM, csr_val);
+		break;
+	case CSR_FFLAGS:
+		SET_FFLAGS(csr_val);//csr_write(CSR_FFLAGS, csr_val);
+		break;
+	case CSR_FCSR:
+		SET_FCSR(csr_val);//csr_write(CSR_FCSR, csr_val);
+		break;
+
 	default:
 		ret = SBI_ENOTSUPP;
 		break;

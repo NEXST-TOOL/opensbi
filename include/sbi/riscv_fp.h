@@ -90,7 +90,7 @@
 #define GET_F64_RS2S(insn, regs) (GET_F64_REG(RVC_RS2S(insn), 0, regs))
 
 #else
-
+register long tp asm("tp");
 //#define SET_FS_DIRTY() set_csr(mstatus, MSTATUS_FS)
 #define SET_FS_DIRTY() csr_write(CSR_MSTATUS, MSTATUS_FS)
 
@@ -101,6 +101,13 @@
 
 #define SET_F32_RD(insn, regs, val) (SET_F32_REG(insn, 7, regs, val), SET_FS_DIRTY())
 #define SET_F64_RD(insn, regs, val) (SET_F64_REG(insn, 7, regs, val), SET_FS_DIRTY())
+
+# define GET_FCSR() ({ (int)tp & 0xFF; })
+# define SET_FCSR(value) ({ asm volatile("add tp, x0, %0" :: "rI"((value) & 0xFF)); SET_FS_DIRTY(); })
+# define GET_FRM() (GET_FCSR() >> 5)
+# define SET_FRM(value) SET_FCSR(GET_FFLAGS() | ((value) << 5))
+# define GET_FFLAGS() (GET_FCSR() & 0x1F)
+# define SET_FFLAGS(value) SET_FCSR((GET_FRM() << 5) | ((value) & 0x1F))
 
 
 
