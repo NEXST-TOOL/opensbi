@@ -21,6 +21,8 @@
 
 #define MATCH_FLD 0x3007
 #define MASK_FLD  0x707f
+#define MATCH_FSD 0x3027
+#define MASK_FSD  0x707f
 
 #define MATCH_FMV_D_X 0xf2000053
 #define MASK_FMV_D_X  0xfff0707f
@@ -124,6 +126,13 @@ static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
                         regs->mepc = regs->mepc + 4;
 			return 0;
                 }
+                if((insn & MASK_FSD) == MATCH_FSD)
+                {
+                        uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
+                        sbi_store_u64((void *)addr, GET_F64_RS2(insn, regs), scratch, &trap);
+			regs->mepc = regs->mepc + 4;
+                        return 0;
+                }
         }
                         return truly_illegal_insn(insn, hartid, mcause, regs,
                                                 scratch);
@@ -193,6 +202,33 @@ int sbi_emulate_float_load_C(ulong insn, u32 hartid, ulong mcause,
   	return truly_illegal_insn(insn, hartid, mcause, regs, scratch);
 }
 
+int sbi_emulate_float_store_C(ulong insn, u32 hartid, ulong mcause,
+                                struct sbi_trap_regs *regs,
+                                struct sbi_scratch *scratch)
+{
+
+  struct sbi_trap_info trap;
+
+  regs->mepc = regs->mepc + 2;
+
+  trap.epc = regs->mepc;
+  trap.cause = mcause;
+  trap.tval = insn;
+
+  if ((insn & INSN_MASK_C_FSD) == INSN_MATCH_C_FSD) {
+    uintptr_t addr = GET_RS1S(insn, regs) + RVC_LD_IMM(insn);
+    sbi_store_u64((void *)addr, GET_F64_RS2(RVC_RS2S(insn) << SH_RS2, regs), scratch, &trap);
+    return 0;
+  }
+  else if ((insn & INSN_MASK_C_FSDSP) == INSN_MATCH_C_FSDSP) {
+    uintptr_t addr = GET_SP(regs) + RVC_SDSP_IMM(insn);
+    sbi_store_u64((void *)addr, GET_F64_RS2(RVC_RS2(insn) << SH_RS2, regs), scratch, &trap);
+    return 0;
+  }
+  else
+        return truly_illegal_insn(insn, hartid, mcause, regs, scratch);
+}
+
 
 
 int sbi_illegal_insn_handler(u32 hartid, ulong mcause,
@@ -216,6 +252,10 @@ int sbi_illegal_insn_handler(u32 hartid, ulong mcause,
 			if ( ((insn & INSN_MASK_C_FLD) == INSN_MATCH_C_FLD) || ((insn & INSN_MASK_C_FLDSP) == INSN_MATCH_C_FLDSP) )
 			{
 				return sbi_emulate_float_load_C(insn, hartid, mcause, regs, scratch);
+			}
+			if ( ((insn & INSN_MASK_C_FSD) == INSN_MATCH_C_FSD) || ((insn & INSN_MASK_C_FSDSP) == INSN_MATCH_C_FSDSP) )
+			{
+                                return sbi_emulate_float_store_C(insn, hartid, mcause, regs, scratch);
 			}
 			else
 				return truly_illegal_insn(insn, hartid, mcause, regs,
