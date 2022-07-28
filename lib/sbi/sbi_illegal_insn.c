@@ -116,7 +116,6 @@ static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
         trap.cause = mcause;
         trap.tval = insn;
 
-
         if(csr_read(CSR_MSTATUS) & MSTATUS_FS)
         {
                 if((insn & MASK_FLD) == MATCH_FLD)
@@ -126,18 +125,33 @@ static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
                         regs->mepc = regs->mepc + 4;
 			return 0;
                 }
+        }
+                        return truly_illegal_insn(insn, hartid, mcause, regs,
+                                                scratch);
+}
+
+static int sbi_emulate_float_store(ulong insn, u32 hartid, ulong mcause,
+                              struct sbi_trap_regs *regs,
+                              struct sbi_scratch *scratch)
+{
+        struct sbi_trap_info trap;
+
+        trap.epc = regs->mepc;
+        trap.cause = mcause;
+        trap.tval = insn;
+
+        if(csr_read(CSR_MSTATUS) & MSTATUS_FS)
+        {
                 if((insn & MASK_FSD) == MATCH_FSD)
                 {
                         uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
                         sbi_store_u64((void *)addr, GET_F64_RS2(insn, regs), scratch, &trap);
-			regs->mepc = regs->mepc + 4;
+                        regs->mepc = regs->mepc + 4;
                         return 0;
                 }
         }
                         return truly_illegal_insn(insn, hartid, mcause, regs,
                                                 scratch);
-
-
 }
 
 static illegal_insn_func illegal_insn_table[32] = {
@@ -150,7 +164,7 @@ static illegal_insn_func illegal_insn_table[32] = {
 	truly_illegal_insn, /* 6 */
 	truly_illegal_insn, /* 7 */
 	truly_illegal_insn, /* 8 */
-	truly_illegal_insn, /* 9 */
+	sbi_emulate_float_store,//truly_illegal_insn, /* 9 */
 	truly_illegal_insn, /* 10 */
 	truly_illegal_insn, /* 11 */
 	truly_illegal_insn, /* 12 */
