@@ -19,14 +19,6 @@
 
 #include <sbi/riscv_fp.h>
 
-#define MATCH_FLD 0x3007
-#define MASK_FLD  0x707f
-#define MATCH_FSD 0x3027
-#define MASK_FSD  0x707f
-
-#define MATCH_FMV_D_X 0xf2000053
-#define MASK_FMV_D_X  0xfff0707f
-
 typedef int (*illegal_insn_func)(ulong insn, u32 hartid, ulong mcause,
 				 struct sbi_trap_regs *regs,
 				 struct sbi_scratch *scratch);
@@ -118,7 +110,7 @@ static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
 
         if(csr_read(CSR_MSTATUS) & MSTATUS_FS)
         {
-                if((insn & MASK_FLD) == MATCH_FLD)
+                if((insn & INSN_MASK_FLD) == INSN_MATCH_FLD)
                 {
                         uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
                         SET_F64_RD(insn, regs, sbi_load_u64((void *)addr, scratch, &trap));
@@ -142,7 +134,7 @@ static int sbi_emulate_float_store(ulong insn, u32 hartid, ulong mcause,
 
         if(csr_read(CSR_MSTATUS) & MSTATUS_FS)
         {
-                if((insn & MASK_FSD) == MATCH_FSD)
+                if((insn & INSN_MASK_FSD) == INSN_MATCH_FSD)
                 {
                         uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
                         sbi_store_u64((void *)addr, GET_F64_RS2(insn, regs), scratch, &trap);
