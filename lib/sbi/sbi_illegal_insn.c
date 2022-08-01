@@ -19,6 +19,10 @@
 
 #include <sbi/riscv_fp.h>
 
+int emulate_fp(ulong insn, u32 hartid, ulong mcause, struct sbi_trap_regs *regs, struct sbi_scratch *scratch);
+//int emulate_fmv_fi(ulong insn, u32 hartid, ulong mcause, struct sbi_trap_regs *regs, struct sbi_scratch *scratch);
+
+
 typedef int (*illegal_insn_func)(ulong insn, u32 hartid, ulong mcause,
 				 struct sbi_trap_regs *regs,
 				 struct sbi_scratch *scratch);
@@ -28,7 +32,6 @@ static int truly_illegal_insn(ulong insn, u32 hartid, ulong mcause,
 			      struct sbi_scratch *scratch)
 {
 	struct sbi_trap_info trap;
-
 	trap.epc = regs->mepc;
 	trap.cause = mcause;
 	trap.tval = insn;
@@ -167,7 +170,7 @@ static illegal_insn_func illegal_insn_table[32] = {
 	truly_illegal_insn, /* 17 */
 	truly_illegal_insn, /* 18 */
 	truly_illegal_insn, /* 19 */
-	truly_illegal_insn, /* 20 */
+	emulate_fp,//truly_illegal_insn, /* 20 */
 	truly_illegal_insn, /* 21 */
 	truly_illegal_insn, /* 22 */
 	truly_illegal_insn, /* 23 */
@@ -243,7 +246,7 @@ int sbi_illegal_insn_handler(u32 hartid, ulong mcause,
 {
 	ulong insn = csr_read(CSR_MTVAL);
 	struct sbi_trap_info uptrap;
-	
+
 	if (unlikely((insn & 3) != 3)) {
 		if (insn == 0) {
 			insn = sbi_get_insn(regs->mepc, scratch, &uptrap);

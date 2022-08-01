@@ -113,7 +113,14 @@ register long tp asm("tp");
 # define GET_FFLAGS() (GET_FCSR() & 0x1F)
 # define SET_FFLAGS(value) SET_FCSR((GET_FRM() << 5) | ((value) & 0x1F))
 
-
+# define SETUP_STATIC_ROUNDING(insn) ({ \
+  tp &= 0xFF; \
+  if (likely(((insn) & MASK_FUNCT3) == MASK_FUNCT3)) tp |= tp << 8; \
+  else if (GET_RM(insn) > 4) return truly_illegal_insn(insn, hartid, mcause, regs, scratch); \
+  else tp |= GET_RM(insn) << 13; \
+  asm volatile ("":"+r"(tp)); })
+# define softfloat_raiseFlags(which) ({ asm volatile ("or tp, tp, %0" :: "rI"(which)); })
+# define softfloat_roundingMode ({ (int)tp >> 13; })
 
 #endif
 
