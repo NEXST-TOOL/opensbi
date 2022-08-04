@@ -122,6 +122,13 @@ register long tp asm("tp");
 # define softfloat_raiseFlags(which) ({ asm volatile ("or tp, tp, %0" :: "rI"(which)); })
 # define softfloat_roundingMode ({ (int)tp >> 13; })
 
+#define GET_F32_RS1(insn, regs) (GET_F32_REG(insn, 15, regs))
+#define GET_F32_RS2(insn, regs) (GET_F32_REG(insn, 20, regs))
+#define GET_F32_RS3(insn, regs) (GET_F32_REG(insn, 27, regs))
+#define GET_F64_RS1(insn, regs) (GET_F64_REG(insn, 15, regs))
+#define GET_F64_RS2(insn, regs) (GET_F64_REG(insn, 20, regs))
+#define GET_F64_RS3(insn, regs) (GET_F64_REG(insn, 27, regs))
+
 #endif
 
 #endif

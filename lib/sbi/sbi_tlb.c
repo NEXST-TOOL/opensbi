@@ -272,7 +272,7 @@ int sbi_tlb_fifo_update(struct sbi_scratch *rscratch, u32 hartid, void *data)
 	return 0;
 }
 
-int sbi_tlb_fifo_init(struct sbi_scratch *scratch, bool cold_boot)
+int sbi_tlb_fifo_init(struct sbi_scratch *scratch, int cold_boot)
 {
 	void *tlb_mem;
 	unsigned long *tlb_sync;

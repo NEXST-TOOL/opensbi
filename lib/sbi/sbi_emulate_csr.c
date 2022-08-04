@@ -24,9 +24,9 @@ int sbi_emulate_csr_read(int csr_num, u32 hartid, struct sbi_trap_regs *regs,
 	ulong cen = -1UL;
 	ulong prev_mode = (regs->mstatus & MSTATUS_MPP) >> MSTATUS_MPP_SHIFT;
 #if __riscv_xlen == 32
-	bool virt = (regs->mstatusH & MSTATUSH_MPV) ? TRUE : FALSE;
+	int virt = (regs->mstatusH & MSTATUSH_MPV) ? TRUE : FALSE;
 #else
-	bool virt = (regs->mstatus & MSTATUS_MPV) ? TRUE : FALSE;
+	int virt = (regs->mstatus & MSTATUS_MPV) ? TRUE : FALSE;
 #endif
 
 	if (prev_mode == PRV_U)
@@ -138,9 +138,9 @@ int sbi_emulate_csr_write(int csr_num, u32 hartid, struct sbi_trap_regs *regs,
 	int ret = 0;
 	ulong prev_mode = (regs->mstatus & MSTATUS_MPP) >> MSTATUS_MPP_SHIFT;
 #if __riscv_xlen == 32
-	bool virt = (regs->mstatusH & MSTATUSH_MPV) ? TRUE : FALSE;
+	int virt = (regs->mstatusH & MSTATUSH_MPV) ? TRUE : FALSE;
 #else
-	bool virt = (regs->mstatus & MSTATUS_MPV) ? TRUE : FALSE;
+	int virt = (regs->mstatus & MSTATUS_MPV) ? TRUE : FALSE;
 #endif
 
 	switch (csr_num) {

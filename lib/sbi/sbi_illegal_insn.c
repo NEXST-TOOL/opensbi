@@ -20,7 +20,7 @@
 #include <sbi/riscv_fp.h>
 
 int emulate_fp(ulong insn, u32 hartid, ulong mcause, struct sbi_trap_regs *regs, struct sbi_scratch *scratch);
-//int emulate_fmv_fi(ulong insn, u32 hartid, ulong mcause, struct sbi_trap_regs *regs, struct sbi_scratch *scratch);
+int emulate_fmadd(ulong insn, u32 hartid, ulong mcause, struct sbi_trap_regs *regs, struct sbi_scratch *scratch);
 
 
 typedef int (*illegal_insn_func)(ulong insn, u32 hartid, ulong mcause,
@@ -120,6 +120,14 @@ static int sbi_emulate_float_load(ulong insn, u32 hartid, ulong mcause,
                         regs->mepc = regs->mepc + 4;
 			return 0;
                 }
+                else if((insn & INSN_MASK_FLW) == INSN_MATCH_FLW)
+                {
+                        uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
+                        SET_F32_RD(insn, regs, sbi_load_u32((void *)addr, scratch, &trap));
+                        regs->mepc = regs->mepc + 4;
+                        return 0;
+                }
+
         }
                         return truly_illegal_insn(insn, hartid, mcause, regs,
                                                 scratch);
@@ -144,6 +152,14 @@ static int sbi_emulate_float_store(ulong insn, u32 hartid, ulong mcause,
                         regs->mepc = regs->mepc + 4;
                         return 0;
                 }
+		else if((insn & INSN_MASK_FSW) == INSN_MATCH_FSW)
+                {
+                        uintptr_t addr = GET_RS1(insn, regs) + IMM_I(insn);
+                        sbi_store_u32((void *)addr, GET_F32_RS2(insn, regs), scratch, &trap);
+                        regs->mepc = regs->mepc + 4;
+                        return 0;
+                }
+
         }
                         return truly_illegal_insn(insn, hartid, mcause, regs,
                                                 scratch);
@@ -166,10 +182,10 @@ static illegal_insn_func illegal_insn_table[32] = {
 	truly_illegal_insn, /* 13 */
 	truly_illegal_insn, /* 14 */
 	truly_illegal_insn, /* 15 */
-	truly_illegal_insn, /* 16 */
-	truly_illegal_insn, /* 17 */
-	truly_illegal_insn, /* 18 */
-	truly_illegal_insn, /* 19 */
+	emulate_fmadd, //truly_illegal_insn, /* 16 */
+	emulate_fmadd, //truly_illegal_insn, /* 17 */
+	emulate_fmadd, //truly_illegal_insn, /* 18 */
+	emulate_fmadd, //truly_illegal_insn, /* 19 */
 	emulate_fp,//truly_illegal_insn, /* 20 */
 	truly_illegal_insn, /* 21 */
 	truly_illegal_insn, /* 22 */
@@ -206,7 +222,18 @@ int sbi_emulate_float_load_C(ulong insn, u32 hartid, ulong mcause,
     uintptr_t addr = GET_SP(regs) + RVC_LDSP_IMM(insn);
     SET_F64_RD(insn, regs, sbi_load_u64((void *)addr, scratch, &trap));
     return 0;
-  } 
+  }
+  else if ((insn & INSN_MASK_C_FLW) == INSN_MATCH_C_FLW) {
+    uintptr_t addr = GET_RS1S(insn, regs) + RVC_LD_IMM(insn);
+    SET_F32_RD(RVC_RS2S(insn) << SH_RD, regs, sbi_load_u32((void *)addr, scratch, &trap));
+    return 0;
+  }
+  else if ((insn & INSN_MASK_C_FLWSP) == INSN_MATCH_C_FLWSP) {
+    uintptr_t addr = GET_SP(regs) + RVC_LDSP_IMM(insn);
+    SET_F32_RD(insn, regs, sbi_load_u32((void *)addr, scratch, &trap));
+    return 0;
+  }
+ 
   else
   	return truly_illegal_insn(insn, hartid, mcause, regs, scratch);
 }
@@ -234,6 +261,17 @@ int sbi_emulate_float_store_C(ulong insn, u32 hartid, ulong mcause,
     sbi_store_u64((void *)addr, GET_F64_RS2(RVC_RS2(insn) << SH_RS2, regs), scratch, &trap);
     return 0;
   }
+  else if ((insn & INSN_MASK_C_FSW) == INSN_MATCH_C_FSW) {
+    uintptr_t addr = GET_RS1S(insn, regs) + RVC_LD_IMM(insn);
+    sbi_store_u32((void *)addr, GET_F32_RS2(RVC_RS2S(insn) << SH_RS2, regs), scratch, &trap);
+    return 0;
+  }
+  else if ((insn & INSN_MASK_C_FSWSP) == INSN_MATCH_C_FSWSP) {
+    uintptr_t addr = GET_SP(regs) + RVC_SDSP_IMM(insn);
+    sbi_store_u32((void *)addr, GET_F32_RS2(RVC_RS2(insn) << SH_RS2, regs), scratch, &trap);
+    return 0;
+  }
+
   else
         return truly_illegal_insn(insn, hartid, mcause, regs, scratch);
 }
@@ -258,11 +296,11 @@ int sbi_illegal_insn_handler(u32 hartid, ulong mcause,
 		}
 		if ((insn & 3) != 3)
 		{
-			if ( ((insn & INSN_MASK_C_FLD) == INSN_MATCH_C_FLD) || ((insn & INSN_MASK_C_FLDSP) == INSN_MATCH_C_FLDSP) )
+			if ( ((insn & INSN_MASK_C_FLD) == INSN_MATCH_C_FLD) || ((insn & INSN_MASK_C_FLDSP) == INSN_MATCH_C_FLDSP) || ((insn & INSN_MASK_C_FLW) == INSN_MATCH_C_FLW) || ((insn & INSN_MASK_C_FLWSP) == INSN_MATCH_C_FLWSP))
 			{
 				return sbi_emulate_float_load_C(insn, hartid, mcause, regs, scratch);
 			}
-			if ( ((insn & INSN_MASK_C_FSD) == INSN_MATCH_C_FSD) || ((insn & INSN_MASK_C_FSDSP) == INSN_MATCH_C_FSDSP) )
+			if ( ((insn & INSN_MASK_C_FSD) == INSN_MATCH_C_FSD) || ((insn & INSN_MASK_C_FSDSP) == INSN_MATCH_C_FSDSP) || ((insn & INSN_MASK_C_FSW) == INSN_MATCH_C_FSW) || ((insn & INSN_MASK_C_FSWSP) == INSN_MATCH_C_FSWSP) )
 			{
                                 return sbi_emulate_float_store_C(insn, hartid, mcause, regs, scratch);
 			}

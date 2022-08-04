@@ -42,7 +42,7 @@ typedef unsigned long long	uint64_t;
 #error "Unexpected __riscv_xlen"
 #endif
 
-typedef int			bool;
+//typedef int			bool;
 typedef unsigned long		ulong;
 typedef unsigned long		uintptr_t;
 typedef unsigned long		size_t;

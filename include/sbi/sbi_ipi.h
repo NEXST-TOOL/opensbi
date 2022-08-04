@@ -37,6 +37,6 @@ void sbi_ipi_clear_smode(struct sbi_scratch *scratch);
 
 void sbi_ipi_process(struct sbi_scratch *scratch);
 
-int sbi_ipi_init(struct sbi_scratch *scratch, bool cold_boot);
+int sbi_ipi_init(struct sbi_scratch *scratch, int cold_boot);
 
 #endif

@@ -14,7 +14,7 @@
 
 #define __printf(a, b) __attribute__((format(printf, a, b)))
 
-bool sbi_isprintable(char ch);
+int sbi_isprintable(char ch);
 
 int sbi_getc(void);
 

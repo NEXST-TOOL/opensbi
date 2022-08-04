@@ -209,7 +209,7 @@ static atomic_t coldboot_lottery = ATOMIC_INITIALIZER(0);
  */
 void __noreturn sbi_init(struct sbi_scratch *scratch)
 {
-	bool coldboot			= FALSE;
+	int coldboot			= FALSE;
 	u32 hartid			= sbi_current_hartid();
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 

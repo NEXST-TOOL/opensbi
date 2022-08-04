@@ -72,9 +72,9 @@ enum sbi_platform_features {
 /** Platform functions */
 struct sbi_platform_operations {
 	/** Platform early initialization */
-	int (*early_init)(bool cold_boot);
+	int (*early_init)(int cold_boot);
 	/** Platform final initialization */
-	int (*final_init)(bool cold_boot);
+	int (*final_init)(int cold_boot);
 
 	/** For platforms that do not implement misa, non-standard
 	 * methods are needed to determine cpu extension.
@@ -103,14 +103,14 @@ struct sbi_platform_operations {
 	int (*console_init)(void);
 
 	/** Initialize the platform interrupt controller for current HART */
-	int (*irqchip_init)(bool cold_boot);
+	int (*irqchip_init)(int cold_boot);
 
 	/** Send IPI to a target HART */
 	void (*ipi_send)(u32 target_hart);
 	/** Clear IPI for a target HART */
 	void (*ipi_clear)(u32 target_hart);
 	/** Initialize IPI for current HART */
-	int (*ipi_init)(bool cold_boot);
+	int (*ipi_init)(int cold_boot);
 
 	/** Get platform timer value */
 	u64 (*timer_value)(void);
@@ -119,7 +119,7 @@ struct sbi_platform_operations {
 	/** Stop platform timer event for current HART */
 	void (*timer_event_stop)(void);
 	/** Initialize platform timer for current HART */
-	int (*timer_init)(bool cold_boot);
+	int (*timer_init)(int cold_boot);
 
 	/** Reboot the platform */
 	int (*system_reboot)(u32 type);
@@ -217,7 +217,7 @@ static inline const char *sbi_platform_name(const struct sbi_platform *plat)
  *
  * @return TRUE if HART is disabled and FALSE otherwise
  */
-static inline bool sbi_platform_hart_disabled(const struct sbi_platform *plat,
+static inline int sbi_platform_hart_disabled(const struct sbi_platform *plat,
 					      u32 hartid)
 {
 	if (plat && (plat->disabled_hart_mask & (1 << hartid)))
@@ -278,7 +278,7 @@ static inline u32 sbi_platform_hart_stack_size(const struct sbi_platform *plat)
  * @return 0 on success and negative error code on failure
  */
 static inline int sbi_platform_early_init(const struct sbi_platform *plat,
-					  bool cold_boot)
+					  int cold_boot)
 {
 	if (plat && sbi_platform_ops(plat)->early_init)
 		return sbi_platform_ops(plat)->early_init(cold_boot);
@@ -294,7 +294,7 @@ static inline int sbi_platform_early_init(const struct sbi_platform *plat,
  * @return 0 on success and negative error code on failure
  */
 static inline int sbi_platform_final_init(const struct sbi_platform *plat,
-					  bool cold_boot)
+					  int cold_boot)
 {
 	if (plat && sbi_platform_ops(plat)->final_init)
 		return sbi_platform_ops(plat)->final_init(cold_boot);
@@ -421,7 +421,7 @@ static inline int sbi_platform_console_init(const struct sbi_platform *plat)
  * @return 0 on success and negative error code on failure
  */
 static inline int sbi_platform_irqchip_init(const struct sbi_platform *plat,
-					    bool cold_boot)
+					    int cold_boot)
 {
 	if (plat && sbi_platform_ops(plat)->irqchip_init)
 		return sbi_platform_ops(plat)->irqchip_init(cold_boot);
@@ -463,7 +463,7 @@ static inline void sbi_platform_ipi_clear(const struct sbi_platform *plat,
  * @return 0 on success and negative error code on failure
  */
 static inline int sbi_platform_ipi_init(const struct sbi_platform *plat,
-					bool cold_boot)
+					int cold_boot)
 {
 	if (plat && sbi_platform_ops(plat)->ipi_init)
 		return sbi_platform_ops(plat)->ipi_init(cold_boot);
@@ -518,7 +518,7 @@ sbi_platform_timer_event_stop(const struct sbi_platform *plat)
  * @return 0 on success and negative error code on failure
  */
 static inline int sbi_platform_timer_init(const struct sbi_platform *plat,
-					  bool cold_boot)
+					  int cold_boot)
 {
 	if (plat && sbi_platform_ops(plat)->timer_init)
 		return sbi_platform_ops(plat)->timer_init(cold_boot);

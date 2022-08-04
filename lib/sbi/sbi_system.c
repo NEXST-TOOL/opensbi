@@ -13,12 +13,12 @@
 #include <sbi/sbi_system.h>
 #include <sbi/sbi_ipi.h>
 
-int sbi_system_early_init(struct sbi_scratch *scratch, bool cold_boot)
+int sbi_system_early_init(struct sbi_scratch *scratch, int cold_boot)
 {
 	return sbi_platform_early_init(sbi_platform_ptr(scratch), cold_boot);
 }
 
-int sbi_system_final_init(struct sbi_scratch *scratch, bool cold_boot)
+int sbi_system_final_init(struct sbi_scratch *scratch, int cold_boot)
 {
 	return sbi_platform_final_init(sbi_platform_ptr(scratch), cold_boot);
 }

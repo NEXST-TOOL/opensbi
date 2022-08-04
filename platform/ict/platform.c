@@ -96,7 +96,7 @@ int serve_uart_getc(void)
 	return -1;
 }
 
-static int serve_early_init(bool cold_boot)
+static int serve_early_init(int cold_boot)
 {
 	if (!cold_boot)
 		return 0;
@@ -107,7 +107,7 @@ static int serve_early_init(bool cold_boot)
 	return 0;
 }
 
-static int serve_final_init(bool cold_boot)
+static int serve_final_init(int cold_boot)
 {
 	return 0;
 }
@@ -138,7 +138,7 @@ static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
 	return ret;
 }
 
-static int serve_irqchip_init(bool cold_boot)
+static int serve_irqchip_init(int cold_boot)
 {
 	int rc;
 	u32 hartid = sbi_current_hartid();
@@ -155,7 +155,7 @@ static int serve_irqchip_init(bool cold_boot)
 					  (hartid) ? (2 * hartid) : -1);
 }
 
-static int serve_ipi_init(bool cold_boot)
+static int serve_ipi_init(int cold_boot)
 {
 	int rc;
 
@@ -168,7 +168,7 @@ static int serve_ipi_init(bool cold_boot)
 	return clint_warm_ipi_init();
 }
 
-static int serve_timer_init(bool cold_boot)
+static int serve_timer_init(int cold_boot)
 {
 	int rc;
 

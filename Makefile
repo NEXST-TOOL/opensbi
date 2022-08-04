@@ -70,6 +70,7 @@ export platform_src_dir=$(platform_parent_dir)/$(platform_subdir)
 export platform_build_dir=$(build_dir)/platform/$(platform_subdir)
 export include_dir=$(CURDIR)/include
 export libsbi_dir=$(CURDIR)/lib/sbi
+export libsoftfloat_dir=$(CURDIR)/lib/softfloat
 export libsbiutils_dir=$(CURDIR)/lib/utils
 export firmware_dir=$(CURDIR)/firmware
 ifeq ($(WITH_SM),y)
@@ -114,6 +115,7 @@ endif
 ifdef PLATFORM
 platform-object-mks=$(shell if [ -d $(platform_src_dir)/ ]; then find $(platform_src_dir) -iname "objects.mk" | sort -r; fi)
 endif
+libsoftfloat-object-mks=$(shell if [ -d $(libsoftfloat_dir) ]; then find $(libsoftfloat_dir) -iname "objects.mk" | sort -r; fi)
 libsbi-object-mks=$(shell if [ -d $(libsbi_dir) ]; then find $(libsbi_dir) -iname "objects.mk" | sort -r; fi)
 libsbiutils-object-mks=$(shell if [ -d $(libsbiutils_dir) ]; then find $(libsbiutils_dir) -iname "objects.mk" | sort -r; fi)
 ifeq ($(WITH_SM),y)
@@ -130,6 +132,7 @@ endif
 ifdef PLATFORM
 include $(platform-object-mks)
 endif
+include $(libsoftfloat-object-mks)
 include $(libsbi-object-mks)
 include $(libsbiutils-object-mks)
 ifeq ($(WITH_SM),y)
@@ -138,6 +141,7 @@ endif
 include $(firmware-object-mks)
 
 # Setup list of objects
+libsoftfloat-objs-path-y=$(foreach obj,$(libsoftfloat-objs-y),$(build_dir)/lib/softfloat/$(obj))
 libsbi-objs-path-y=$(foreach obj,$(libsbi-objs-y),$(build_dir)/lib/sbi/$(obj))
 libsbiutils-objs-path-y=$(foreach obj,$(libsbiutils-objs-y),$(build_dir)/lib/utils/$(obj))
 ifeq ($(WITH_SM),y)
@@ -153,6 +157,7 @@ firmware-objs-path-y=$(firmware-bins-path-y:.bin=.o)
 
 # Setup list of deps files for objects
 deps-y=$(platform-objs-path-y:.o=.dep)
+deps-y+=$(libsoftfloat-objs-path-y:.o=.dep)
 deps-y+=$(libsbi-objs-path-y:.o=.dep)
 deps-y+=$(libsbiutils-objs-path-y:.o=.dep)
 ifeq ($(WITH_SM),y)
@@ -188,7 +193,7 @@ GENFLAGS	+=	$(libsbiutils-genflags-y)
 GENFLAGS	+=	$(platform-genflags-y)
 GENFLAGS	+=	$(firmware-genflags-y)
 
-CFLAGS		=	-g -Wall -Werror -nostdlib -fno-strict-aliasing -O2
+CFLAGS		=	-g -Wall -Werror -nostdlib -fno-strict-aliasing -O2 -Wno-unused
 CFLAGS		+=	-fno-omit-frame-pointer -fno-optimize-sibling-calls
 CFLAGS		+=	-mno-save-restore -mstrict-align
 CFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)
@@ -289,7 +294,8 @@ compile_dts = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 	     echo " DTC       $(subst $(build_dir)/,,$(1))"; \
 	     $(DTC) $(DTCFLAGS) -o $(1) $(2)
 
-targets-y  = $(build_dir)/lib/libsbi.a
+targets-y  = $(build_dir)/lib/libsoftfloat.a
+targets-y  += $(build_dir)/lib/libsbi.a
 targets-y  += $(build_dir)/lib/libsbiutils.a
 ifeq ($(WITH_SM),y)
 targets-y  += $(build_dir)/sm/sm.a
@@ -329,10 +335,13 @@ $(build_dir)/sm/sm.a: $(sm-objs-path-y)
 	$(call compile_ar,$@,$^)
 endif
 
+$(build_dir)/lib/libsoftfloat.a: $(libsoftfloat-objs-path-y) 
+	$(call compile_ar,$@,$^)
+
 $(build_dir)/lib/libsbiutils.a: $(libsbi-objs-path-y) $(libsbiutils-objs-path-y)
 	$(call compile_ar,$@,$^)
 
-$(platform_build_dir)/lib/libplatsbi.a: $(libsbi-objs-path-y) $(libsbiutils-objs-path-y) $(platform-objs-path-y)
+$(platform_build_dir)/lib/libplatsbi.a: $(libsbi-objs-path-y) $(libsbiutils-objs-path-y) $(platform-objs-path-y) $(libsoftfloat-objs-path-y)
 	$(call compile_ar,$@,$^)
 
 ifeq ($(WITH_SM),y)
@@ -418,8 +427,8 @@ else
 	@false
 endif
 endif
-
-install_targets-y  = install_libsbi
+install_targets-y  = install_libsoftfloat
+install_targets-y  += install_libsbi
 install_targets-y  += install_libsbiutils
 ifdef PLATFORM
 install_targets-y += install_libplatsbi
@@ -429,6 +438,11 @@ endif
 # Rule for "make install"
 .PHONY: install
 install: $(install_targets-y)
+
+.PHONY: install_libsoftfloat
+install_libsbiutils: $(build_dir)/lib/libsoftfloat.a
+	$(call inst_header_dir,$(install_dir)/include)
+	$(call inst_file,$(install_dir)/lib/softfloat.a,$(build_dir)/lib/softfloat.a)
 
 .PHONY: install_libsbi
 install_libsbi: $(build_dir)/lib/libsbi.a

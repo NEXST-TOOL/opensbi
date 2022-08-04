@@ -192,7 +192,7 @@ int sbi_ecall_handler(u32 hartid, ulong mcause, struct sbi_trap_regs *regs,
 	unsigned long func_id = regs->a6;
 	struct sbi_trap_info trap = {0};
 	unsigned long out_val[2];
-	bool is_0_1_spec = 0;
+	int is_0_1_spec = 0;
 	unsigned long args[6];
 
 	args[0] = regs->a0;

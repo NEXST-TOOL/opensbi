@@ -140,7 +140,7 @@ skip:
 	};
 }
 
-int sbi_ipi_init(struct sbi_scratch *scratch, bool cold_boot)
+int sbi_ipi_init(struct sbi_scratch *scratch, int cold_boot)
 {
 	int ret;
 	struct sbi_ipi_data *ipi_data;

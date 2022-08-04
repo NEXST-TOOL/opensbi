@@ -14,7 +14,7 @@
 static const struct sbi_platform *console_plat = NULL;
 static spinlock_t console_out_lock	       = SPIN_LOCK_INITIALIZER;
 
-bool sbi_isprintable(char c)
+int sbi_isprintable(char c)
 {
 	if (((31 < c) && (c < 127)) || (c == '\f') || (c == '\r') ||
 	    (c == '\n') || (c == '\t')) {
