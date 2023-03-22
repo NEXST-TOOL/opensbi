@@ -14,6 +14,7 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_console.h>
 #include <sbi/sbi_platform.h>
+#include <sbi/sbi_trap.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/riscv_io.h>
 #include <sbi_utils/irqchip/plic.h>
@@ -63,6 +64,18 @@
 static volatile void *uart_base;
 
 static spinlock_t pm_secure_lock;
+
+static struct plic_data plic = {
+	.addr = SERVE_PLIC_ADDR,
+	.num_src = SERVE_PLIC_NUM_SOURCES,
+};
+
+static struct clint_data clint = {
+	.addr = SERVE_CLINT_ADDR,
+	.first_hartid = 0,
+	.hart_count = SERVE_HART_COUNT,
+	.has_64bit_mmio = TRUE,
+};
 
 /* clang-format on */
 
@@ -116,12 +129,13 @@ static int serve_final_init(bool cold_boot)
 	return 0;
 }
 
-static u32 serve_pmp_region_count(u32 hartid)
+/*static u32 serve_pmp_region_count(u32 hartid)
 {
 	return 7;
 }
+*/
 
-static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
+/*static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
 				 ulong *addr, ulong *log2size)
 {
 	int ret = 0;
@@ -141,22 +155,27 @@ static int serve_pmp_region_info(u32 hartid, u32 index, ulong *prot,
 
 	return ret;
 }
-
+*/
 static int serve_irqchip_init(bool cold_boot)
 {
 	int rc;
-	u32 hartid = sbi_current_hartid();
+	u32 hartid = current_hartid();
 
 	if (cold_boot) {
-		rc = plic_cold_irqchip_init(SERVE_PLIC_ADDR,
-						SERVE_PLIC_NUM_SOURCES,
-						SERVE_HART_COUNT);
+//		rc = plic_cold_irqchip_init(SERVE_PLIC_ADDR,
+//						SERVE_PLIC_NUM_SOURCES,
+//						SERVE_HART_COUNT);
+		rc = plic_cold_irqchip_init(&plic);
 		if (rc)
 			return rc;
 	}
 
-	return plic_warm_irqchip_init(hartid, (hartid) ? (2 * hartid - 1) : 0,
-					  (hartid) ? (2 * hartid) : -1);
+//	return plic_warm_irqchip_init(hartid, (hartid) ? (2 * hartid - 1) : 0,
+//					  (hartid) ? (2 * hartid) : -1);
+
+	return plic_warm_irqchip_init(&plic, (hartid) ? (2 * hartid - 1) : 0,
+					(hartid) ? (2 * hartid) : -1);
+
 }
 
 static int serve_ipi_init(bool cold_boot)
@@ -164,7 +183,8 @@ static int serve_ipi_init(bool cold_boot)
 	int rc;
 
 	if (cold_boot) {
-		rc = clint_cold_ipi_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
+//		rc = clint_cold_ipi_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
+		rc = clint_cold_ipi_init(&clint);
 		if (rc)
 			return rc;
 	}
@@ -177,7 +197,8 @@ static int serve_timer_init(bool cold_boot)
 	int rc;
 
 	if (cold_boot) {
-		rc = clint_cold_timer_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
+//		rc = clint_cold_timer_init(SERVE_CLINT_ADDR, SERVE_HART_COUNT);
+		rc = clint_cold_timer_init(&clint, NULL);
 		if (rc)
 			return rc;
 	}
@@ -201,9 +222,18 @@ static int serve_vendor_ext_check(long extid) {
 #if SERVE_ECALL_EXT
 static int pm_ecall_handler(
 	long funcid,
-	unsigned long *args,
+//	unsigned long *args,
+	const struct sbi_trap_regs *regs,
 	unsigned long *out_value
 ) {
+	unsigned long args[6];
+
+	args[0] = regs->a0;
+	args[1] = regs->a1;
+	args[2] = regs->a2;
+	args[3] = regs->a3;
+	args[4] = regs->a4;
+	args[5] = regs->a5;
 
 	spin_lock(&pm_secure_lock);
 
@@ -212,6 +242,10 @@ static int pm_ecall_handler(
 	writel(args[1], IPC_ARG_1);
 	writel(args[2], IPC_ARG_2);
 	writel(args[3], IPC_ARG_3);
+//	writel(regs->a0, IPC_ARG_0);
+//	writel(regs->a1, IPC_ARG_1);
+//	writel(regs->a2, IPC_ARG_2);
+//	writel(regs->a3, IPC_ARG_3);
 
 	writel(1, IPC_REQ);
 	while (readl(IPC_REQ));
@@ -228,14 +262,16 @@ static int pm_ecall_handler(
 static int serve_vendor_ext_provider(
 	long extid,
 	long funcid,
-	unsigned long *args,
+//	unsigned long *args,
+	const struct sbi_trap_regs *regs,
 	unsigned long *out_value,
 	struct sbi_trap_info *out_trap
 ) {
 #if SERVE_ECALL_EXT
 	switch (extid) {
 		case SERVE_EXT_PM:
-			return pm_ecall_handler(funcid, args, out_value);
+//			return pm_ecall_handler(funcid, args, out_value);
+			return pm_ecall_handler(funcid, regs, out_value);
 		default:
 			return SBI_ENOTSUPP;
 	}
@@ -245,8 +281,8 @@ static int serve_vendor_ext_provider(
 }
 
 const struct sbi_platform_operations platform_ops = {
-	.pmp_region_count	= serve_pmp_region_count,
-	.pmp_region_info	= serve_pmp_region_info,
+//	.pmp_region_count	= serve_pmp_region_count,
+//	.pmp_region_info	= serve_pmp_region_info,
 	.early_init			= serve_early_init,
 	.final_init			= serve_final_init,
 	.console_putc		= serve_uart_putc,
@@ -266,10 +302,10 @@ const struct sbi_platform_operations platform_ops = {
 const struct sbi_platform platform = {
 	.opensbi_version	= OPENSBI_VERSION,
 	.platform_version	= SBI_PLATFORM_VERSION(0x0, 0x01),
-	.name			= "ICT SERVE",
+	.name			= "ICT SERVE Rocket-Hyp FPGA",
 	.features		= SBI_PLATFORM_DEFAULT_FEATURES,
 	.hart_count		= SERVE_HART_COUNT,
 	.hart_stack_size	= SERVE_HART_STACK_SIZE,
-	.disabled_hart_mask	= SERVE_HARITD_DISABLED,
+//	.disabled_hart_mask	= SERVE_HARITD_DISABLED,
 	.platform_ops_addr	= (unsigned long)&platform_ops
 };
