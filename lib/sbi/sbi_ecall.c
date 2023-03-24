@@ -99,16 +99,25 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	unsigned long extension_id = regs->a7;
 	unsigned long func_id = regs->a6;
 	struct sbi_trap_info trap = {0};
-	unsigned long out_val = 0;
+//	unsigned long out_val = 0;
+	unsigned long out_val[2];
+
 	bool is_0_1_spec = 0;
+	bool is_vendor_serve = 0;
 
 	ext = sbi_ecall_find_extension(extension_id);
 	if (ext && ext->handle) {
-		ret = ext->handle(extension_id, func_id,
-				  regs, &out_val, &trap);
+//		ret = ext->handle(extension_id, func_id,
+//				  regs, &out_val, &trap);
+                ret = ext->handle(extension_id, func_id,
+                                  regs, out_val, &trap);
+
 		if (extension_id >= SBI_EXT_0_1_SET_TIMER &&
 		    extension_id <= SBI_EXT_0_1_SHUTDOWN)
 			is_0_1_spec = 1;
+		if (extension_id >= SBI_EXT_VENDOR_START &&
+		    extension_id <= SBI_EXT_VENDOR_END)
+			is_vendor_serve = 1;
 	} else {
 		ret = SBI_ENOTSUPP;
 	}
@@ -133,11 +142,22 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 		 * case should be handled differently.
 		 */
 		regs->mepc += 4;
-		regs->a0 = ret;
-		if (!is_0_1_spec)
-			regs->a1 = out_val;
+		if (is_0_1_spec)
+			regs->a0 = ret;
+		else
+		{
+			if (is_vendor_serve)
+			{
+				regs->a0 = out_val[0];
+				regs->a1 = out_val[1];
+			}
+			else
+			{
+				regs->a0 = ret;
+				regs->a1 = out_val[0];
+			}	
+		}
 	}
-
 	return 0;
 }
 
