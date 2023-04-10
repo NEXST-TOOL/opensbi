@@ -11,96 +11,178 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_atomic.h>
 #include <sbi/riscv_barrier.h>
+#include <sbi/sbi_bitops.h>
+#include <sbi/sbi_domain.h>
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_hart.h>
+#include <sbi/sbi_hsm.h>
+#include <sbi/sbi_init.h>
 #include <sbi/sbi_ipi.h>
 #include <sbi/sbi_platform.h>
-#include <sbi/sbi_tlb.h>
-#include <sbi/sbi_trap.h>
-#include <sbi/sbi_unpriv.h>
+
+struct sbi_ipi_data {
+	unsigned long ipi_type;
+};
 
 static unsigned long ipi_data_off;
 
-static int sbi_ipi_send(struct sbi_scratch *scratch, u32 hartid, u32 event,
-			void *data)
+static const struct sbi_ipi_event_ops *ipi_ops_array[SBI_IPI_EVENT_MAX];
+
+static int sbi_ipi_send(struct sbi_scratch *scratch, u32 remote_hartid,
+			u32 event, void *data)
 {
 	int ret;
 	struct sbi_scratch *remote_scratch = NULL;
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 	struct sbi_ipi_data *ipi_data;
+	const struct sbi_ipi_event_ops *ipi_ops;
 
-	if (sbi_platform_hart_disabled(plat, hartid))
-		return -1;
+	if ((SBI_IPI_EVENT_MAX <= event) ||
+	    !ipi_ops_array[event])
+		return SBI_EINVAL;
+	ipi_ops = ipi_ops_array[event];
+
+	remote_scratch = sbi_hartid_to_scratch(remote_hartid);
+	if (!remote_scratch)
+		return SBI_EINVAL;
+
+	ipi_data = sbi_scratch_offset_ptr(remote_scratch, ipi_data_off);
+
+	if (ipi_ops->update) {
+		ret = ipi_ops->update(scratch, remote_scratch,
+				      remote_hartid, data);
+		if (ret < 0)
+			return ret;
+	}
 
 	/*
 	 * Set IPI type on remote hart's scratch area and
 	 * trigger the interrupt
 	 */
-	remote_scratch = sbi_hart_id_to_scratch(scratch, hartid);
-	ipi_data = sbi_scratch_offset_ptr(remote_scratch, ipi_data_off);
-	if (event == SBI_IPI_EVENT_SFENCE_VMA ||
-	    event == SBI_IPI_EVENT_SFENCE_VMA_ASID ||
-	    event == SBI_IPI_EVENT_FENCE_I ) {
-		ret = sbi_tlb_fifo_update(remote_scratch, hartid, data);
-		if (ret < 0)
-			return ret;
-	}
 	atomic_raw_set_bit(event, &ipi_data->ipi_type);
 	smp_wmb();
-	sbi_platform_ipi_send(plat, hartid);
+	sbi_platform_ipi_send(plat, remote_hartid);
 
-	if (event == SBI_IPI_EVENT_SFENCE_VMA ||
-	    event == SBI_IPI_EVENT_SFENCE_VMA_ASID ||
-	    event == SBI_IPI_EVENT_FENCE_I ) {
-		sbi_tlb_fifo_sync(scratch);
-	}
+	if (ipi_ops->sync)
+		ipi_ops->sync(scratch);
 
 	return 0;
 }
 
-int sbi_ipi_send_many(struct sbi_scratch *scratch,
-		      struct sbi_trap_info *uptrap,
-		      ulong *pmask, u32 event, void *data)
+/**
+ * As this this function only handlers scalar values of hart mask, it must be
+ * set to all online harts if the intention is to send IPIs to all the harts.
+ * If hmask is zero, no IPIs will be sent.
+ */
+int sbi_ipi_send_many(ulong hmask, ulong hbase, u32 event, void *data)
 {
+	int rc;
 	ulong i, m;
-	ulong mask = sbi_hart_available_mask();
-	u32 hartid = sbi_current_hartid();
+	struct sbi_domain *dom = sbi_domain_thishart_ptr();
+	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
 
-	if (pmask) {
-		mask &= sbi_load_ulong(pmask, scratch, uptrap);
-		if (uptrap->cause)
-			return SBI_ETRAP;
+	if (hbase != -1UL) {
+		rc = sbi_hsm_hart_started_mask(dom, hbase, &m);
+		if (rc)
+			return rc;
+		m &= hmask;
+
+		/* Send IPIs */
+		for (i = hbase; m; i++, m >>= 1) {
+			if (m & 1UL)
+				sbi_ipi_send(scratch, i, event, data);
+		}
+	} else {
+		hbase = 0;
+		while (!sbi_hsm_hart_started_mask(dom, hbase, &m)) {
+			/* Send IPIs */
+			for (i = hbase; m; i++, m >>= 1) {
+				if (m & 1UL)
+					sbi_ipi_send(scratch, i, event, data);
+			}
+			hbase += BITS_PER_LONG;
+		}
 	}
-
-	/* Send IPIs to every other hart on the set */
-	for (i = 0, m = mask; m; i++, m >>= 1)
-		if ((m & 1UL) && (i != hartid))
-			sbi_ipi_send(scratch, i, event, data);
-
-	/*
-	 * If the current hart is on the set, send an IPI
-	 * to it as well
-	 */
-	if (mask & (1UL << hartid))
-		sbi_ipi_send(scratch, hartid, event, data);
 
 	return 0;
 }
 
-void sbi_ipi_clear_smode(struct sbi_scratch *scratch)
+int sbi_ipi_event_create(const struct sbi_ipi_event_ops *ops)
+{
+	int i, ret = SBI_ENOSPC;
+
+	if (!ops || !ops->process)
+		return SBI_EINVAL;
+
+	for (i = 0; i < SBI_IPI_EVENT_MAX; i++) {
+		if (!ipi_ops_array[i]) {
+			ret = i;
+			ipi_ops_array[i] = ops;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+void sbi_ipi_event_destroy(u32 event)
+{
+	if (SBI_IPI_EVENT_MAX <= event)
+		return;
+
+	ipi_ops_array[event] = NULL;
+}
+
+static void sbi_ipi_process_smode(struct sbi_scratch *scratch)
+{
+	csr_set(CSR_MIP, MIP_SSIP);
+}
+
+static struct sbi_ipi_event_ops ipi_smode_ops = {
+	.name = "IPI_SMODE",
+	.process = sbi_ipi_process_smode,
+};
+
+static u32 ipi_smode_event = SBI_IPI_EVENT_MAX;
+
+int sbi_ipi_send_smode(ulong hmask, ulong hbase)
+{
+	return sbi_ipi_send_many(hmask, hbase, ipi_smode_event, NULL);
+}
+
+void sbi_ipi_clear_smode(void)
 {
 	csr_clear(CSR_MIP, MIP_SSIP);
 }
 
-void sbi_ipi_process(struct sbi_scratch *scratch)
+static void sbi_ipi_process_halt(struct sbi_scratch *scratch)
+{
+	sbi_hsm_hart_stop(scratch, TRUE);
+}
+
+static struct sbi_ipi_event_ops ipi_halt_ops = {
+	.name = "IPI_HALT",
+	.process = sbi_ipi_process_halt,
+};
+
+static u32 ipi_halt_event = SBI_IPI_EVENT_MAX;
+
+int sbi_ipi_send_halt(ulong hmask, ulong hbase)
+{
+	return sbi_ipi_send_many(hmask, hbase, ipi_halt_event, NULL);
+}
+
+void sbi_ipi_process(void)
 {
 	unsigned long ipi_type;
 	unsigned int ipi_event;
+	const struct sbi_ipi_event_ops *ipi_ops;
+	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 	struct sbi_ipi_data *ipi_data =
 			sbi_scratch_offset_ptr(scratch, ipi_data_off);
 
-	u32 hartid = sbi_current_hartid();
+	u32 hartid = current_hartid();
 	sbi_platform_ipi_clear(plat, hartid);
 
 	ipi_type = atomic_raw_xchg_ulong(&ipi_data->ipi_type, 0);
@@ -109,21 +191,9 @@ void sbi_ipi_process(struct sbi_scratch *scratch)
 		if (!(ipi_type & 1UL))
 			goto skip;
 
-		switch (ipi_event) {
-		case SBI_IPI_EVENT_SOFT:
-			csr_set(CSR_MIP, MIP_SSIP);
-			break;
-		case SBI_IPI_EVENT_FENCE_I:
-		case SBI_IPI_EVENT_SFENCE_VMA:
-		case SBI_IPI_EVENT_SFENCE_VMA_ASID:
-			sbi_tlb_fifo_process(scratch);
-			break;
-		case SBI_IPI_EVENT_HALT:
-			sbi_hart_hang();
-			break;
-		default:
-			break;
-		};
+		ipi_ops = ipi_ops_array[ipi_event];
+		if (ipi_ops && ipi_ops->process)
+			ipi_ops->process(scratch);
 
 skip:
 		ipi_type = ipi_type >> 1;
@@ -141,20 +211,44 @@ int sbi_ipi_init(struct sbi_scratch *scratch, bool cold_boot)
 							"IPI_DATA");
 		if (!ipi_data_off)
 			return SBI_ENOMEM;
+		ret = sbi_ipi_event_create(&ipi_smode_ops);
+		if (ret < 0)
+			return ret;
+		ipi_smode_event = ret;
+		ret = sbi_ipi_event_create(&ipi_halt_ops);
+		if (ret < 0)
+			return ret;
+		ipi_halt_event = ret;
 	} else {
 		if (!ipi_data_off)
 			return SBI_ENOMEM;
+		if (SBI_IPI_EVENT_MAX <= ipi_smode_event ||
+		    SBI_IPI_EVENT_MAX <= ipi_halt_event)
+			return SBI_ENOSPC;
 	}
 
 	ipi_data = sbi_scratch_offset_ptr(scratch, ipi_data_off);
 	ipi_data->ipi_type = 0x00;
 
-	ret = sbi_tlb_fifo_init(scratch, cold_boot);
+	/* Platform init */
+	ret = sbi_platform_ipi_init(sbi_platform_ptr(scratch), cold_boot);
 	if (ret)
 		return ret;
 
 	/* Enable software interrupts */
 	csr_set(CSR_MIE, MIP_MSIP);
 
-	return sbi_platform_ipi_init(sbi_platform_ptr(scratch), cold_boot);
+	return 0;
+}
+
+void sbi_ipi_exit(struct sbi_scratch *scratch)
+{
+	/* Disable software interrupts */
+	csr_clear(CSR_MIE, MIP_MSIP);
+
+	/* Process pending IPIs */
+	sbi_ipi_process();
+
+	/* Platform exit */
+	sbi_platform_ipi_exit(sbi_platform_ptr(scratch));
 }
