@@ -12,29 +12,37 @@
 # o  Do not print "Entering directory ...";
 MAKEFLAGS += -r --no-print-directory
 
+# Readlink -f requires GNU readlink
+ifeq ($(shell uname -s),Darwin)
+READLINK ?= greadlink
+else
+READLINK ?= readlink
+endif
+
 # Find out source, build, and install directories
 src_dir=$(CURDIR)
 ifdef O
- build_dir=$(shell readlink -f $(O))
+ build_dir=$(shell $(READLINK) -f $(O))
 else
  build_dir=$(CURDIR)/build
 endif
 ifeq ($(build_dir),$(CURDIR))
 $(error Build directory is same as source directory.)
 endif
+install_root_dir_default=$(CURDIR)/install
 ifdef I
- install_dir=$(shell readlink -f $(I))
+ install_root_dir=$(shell $(READLINK) -f $(I))
 else
- install_dir=$(CURDIR)/install
+ install_root_dir=$(install_root_dir_default)/usr
 endif
-ifeq ($(install_dir),$(CURDIR))
-$(error Install directory is same as source directory.)
+ifeq ($(install_root_dir),$(CURDIR))
+$(error Install root directory is same as source directory.)
 endif
-ifeq ($(install_dir),$(build_dir))
-$(error Install directory is same as build directory.)
+ifeq ($(install_root_dir),$(build_dir))
+$(error Install root directory is same as build directory.)
 endif
 ifdef PLATFORM_DIR
-  platform_dir_path=$(shell readlink -f $(PLATFORM_DIR))
+  platform_dir_path=$(shell $(READLINK) -f $(PLATFORM_DIR))
   ifdef PLATFORM
     platform_parent_dir=$(platform_dir_path)
   else
@@ -100,6 +108,8 @@ DTC		=	dtc
 
 # Guess the compillers xlen
 OPENSBI_CC_XLEN := $(shell TMP=`$(CC) -dumpmachine | sed 's/riscv\([0-9][0-9]\).*/\1/'`; echo $${TMP})
+OPENSBI_CC_ABI := $(shell TMP=`$(CC) -v 2>&1 | sed -n 's/.*\(with\-abi=\([a-zA-Z0-9]*\)\).*/\2/p'`; echo $${TMP})
+OPENSBI_CC_ISA := $(shell TMP=`$(CC) -v 2>&1 | sed -n 's/.*\(with\-arch=\([a-zA-Z0-9]*\)\).*/\2/p'`; echo $${TMP})
 
 # Setup platform XLEN
 ifndef PLATFORM_RISCV_XLEN
@@ -145,7 +155,6 @@ sm-objs-path-y=$(foreach obj,$(sm-objs-y),$(sm_build_dir)/$(obj))
 endif
 ifdef PLATFORM
 platform-objs-path-y=$(foreach obj,$(platform-objs-y),$(platform_build_dir)/$(obj))
-platform-dtb-path-y=$(foreach obj,$(platform-dtb-y),$(platform_build_dir)/$(obj))
 firmware-bins-path-y=$(foreach bin,$(firmware-bins-y),$(platform_build_dir)/firmware/$(bin))
 endif
 firmware-elfs-path-y=$(firmware-bins-path-y:.bin=.elf)
@@ -162,17 +171,52 @@ deps-y+=$(firmware-objs-path-y:.o=.dep)
 
 # Setup platform ABI, ISA and Code Model
 ifndef PLATFORM_RISCV_ABI
-  ifeq ($(PLATFORM_RISCV_XLEN), 32)
-    PLATFORM_RISCV_ABI = ilp$(PLATFORM_RISCV_XLEN)
+  ifneq ($(PLATFORM_RISCV_TOOLCHAIN_DEFAULT), 1)
+    ifeq ($(PLATFORM_RISCV_XLEN), 32)
+      PLATFORM_RISCV_ABI = ilp$(PLATFORM_RISCV_XLEN)
+    else
+      PLATFORM_RISCV_ABI = lp$(PLATFORM_RISCV_XLEN)
+    endif
   else
-    PLATFORM_RISCV_ABI = lp$(PLATFORM_RISCV_XLEN)
+    PLATFORM_RISCV_ABI = $(OPENSBI_CC_ABI)
   endif
 endif
 ifndef PLATFORM_RISCV_ISA
-  PLATFORM_RISCV_ISA = rv$(PLATFORM_RISCV_XLEN)imafdc
+  ifneq ($(PLATFORM_RISCV_TOOLCHAIN_DEFAULT), 1)
+    PLATFORM_RISCV_ISA = rv$(PLATFORM_RISCV_XLEN)imafdc
+  else
+    PLATFORM_RISCV_ISA = $(OPENSBI_CC_ISA)
+  endif
 endif
 ifndef PLATFORM_RISCV_CODE_MODEL
   PLATFORM_RISCV_CODE_MODEL = medany
+endif
+
+# Setup install directories
+ifdef INSTALL_INCLUDE_PATH
+	install_include_path=$(INSTALL_INCLUDE_PATH)
+else
+	install_include_path=include
+endif
+ifdef INSTALL_LIB_PATH
+	install_lib_path=$(INSTALL_LIB_PATH)
+else
+	ifneq ($(origin INSTALL_LIB_SUBDIR), undefined)
+		install_lib_subdir=$(INSTALL_LIB_SUBDIR)
+	else
+		install_lib_subdir=$(PLATFORM_RISCV_ABI)
+	endif
+	install_lib_path=lib$(subst 32,,$(PLATFORM_RISCV_XLEN))/$(install_lib_subdir)
+endif
+ifdef INSTALL_FIRMWARE_PATH
+	install_firmware_path=$(INSTALL_FIRMWARE_PATH)
+else
+	install_firmware_path=share/opensbi/$(PLATFORM_RISCV_ABI)
+endif
+ifdef INSTALL_DOCS_PATH
+	install_docs_path=$(INSTALL_DOCS_PATH)
+else
+	install_docs_path=share/opensbi/docs
 endif
 
 # Setup compilation commands flags
@@ -188,7 +232,7 @@ GENFLAGS	+=	$(libsbiutils-genflags-y)
 GENFLAGS	+=	$(platform-genflags-y)
 GENFLAGS	+=	$(firmware-genflags-y)
 
-CFLAGS		=	-g -Wall -Werror -nostdlib -fno-strict-aliasing -O2
+CFLAGS		=	-g -Wall -Werror -ffreestanding -nostdlib -fno-strict-aliasing -O2
 CFLAGS		+=	-fno-omit-frame-pointer -fno-optimize-sibling-calls
 CFLAGS		+=	-mno-save-restore -mstrict-align
 CFLAGS		+=	-mabi=$(PLATFORM_RISCV_ABI) -march=$(PLATFORM_RISCV_ISA)
@@ -225,7 +269,7 @@ MERGEFLAGS	+=	-r
 MERGEFLAGS	+=	-b elf$(PLATFORM_RISCV_XLEN)-littleriscv
 MERGEFLAGS	+=	-m elf$(PLATFORM_RISCV_XLEN)lriscv
 
-DTCFLAGS	=	-O dtb
+DTSCPPFLAGS	=	$(CPPFLAGS) -nostdinc -nostdlib -fno-builtin -D__DTS__ -x assembler-with-cpp
 
 # Setup functions for compilation
 define dynamic_flags
@@ -241,12 +285,12 @@ copy_file =  $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 	     echo " COPY      $(subst $(build_dir)/,,$(1))"; \
 	     cp -f $(2) $(1)
 inst_file =  $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
-	     echo " INSTALL   $(subst $(install_dir)/,,$(1))"; \
+	     echo " INSTALL   $(subst $(install_root_dir)/,,$(1))"; \
 	     cp -f $(2) $(1)
 inst_file_list = $(CMD_PREFIX)if [ ! -z "$(4)" ]; then \
 	     mkdir -p $(1)/$(3); \
 	     for file in $(4) ; do \
-	     rel_file=`echo $$file | sed -e 's@$(2)/$(3)/@@'`; \
+	     rel_file=`echo $$file | sed -e 's@$(2)/$(subst $(install_firmware_path),platform,$(3))@@'`; \
 	     dest_file=$(1)"/"$(3)"/"`echo $$rel_file`; \
 	     dest_dir=`dirname $$dest_file`; \
 	     echo " INSTALL   "$(3)"/"`echo $$rel_file`; \
@@ -255,7 +299,7 @@ inst_file_list = $(CMD_PREFIX)if [ ! -z "$(4)" ]; then \
 	     done \
 	     fi
 inst_header_dir =  $(CMD_PREFIX)mkdir -p $(1); \
-	     echo " INSTALL   $(subst $(install_dir)/,,$(1))"; \
+	     echo " INSTALL   $(subst $(install_root_dir)/,,$(1))"; \
 	     cp -rf $(2) $(1)
 compile_cpp = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 	     echo " CPP       $(subst $(build_dir)/,,$(1))"; \
@@ -287,7 +331,16 @@ compile_objcopy = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 	     $(OBJCOPY) -S -O binary $(2) $(1)
 compile_dts = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
 	     echo " DTC       $(subst $(build_dir)/,,$(1))"; \
-	     $(DTC) $(DTCFLAGS) -o $(1) $(2)
+	     $(CPP) $(DTSCPPFLAGS) $(2) | $(DTC) -O dtb -i `dirname $(2)` -o $(1)
+compile_d2c = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
+	     echo " D2C       $(subst $(build_dir)/,,$(1))"; \
+	     $(if $($(2)-varalign-$(3)),$(eval D2C_ALIGN_BYTES := $($(2)-varalign-$(3))),$(eval D2C_ALIGN_BYTES := $(4))) \
+	     $(if $($(2)-varprefix-$(3)),$(eval D2C_NAME_PREFIX := $($(2)-varprefix-$(3))),$(eval D2C_NAME_PREFIX := $(5))) \
+	     $(if $($(2)-padding-$(3)),$(eval D2C_PADDING_BYTES := $($(2)-padding-$(3))),$(eval D2C_PADDING_BYTES := 0)) \
+	     $(src_dir)/scripts/d2c.sh -i $(6) -a $(D2C_ALIGN_BYTES) -p $(D2C_NAME_PREFIX) -t $(D2C_PADDING_BYTES) > $(1)
+compile_gen_dep = $(CMD_PREFIX)mkdir -p `dirname $(1)`; \
+	     echo " GEN-DEP   $(subst $(build_dir)/,,$(1))"; \
+	     echo "$(1:.dep=$(2)): $(3)" >> $(1)
 
 targets-y  = $(build_dir)/lib/libsbi.a
 targets-y  += $(build_dir)/lib/libsbiutils.a
@@ -296,7 +349,6 @@ targets-y  += $(build_dir)/sm/sm.a
 endif
 ifdef PLATFORM
 targets-y += $(platform_build_dir)/lib/libplatsbi.a
-targets-y += $(platform-dtb-path-y)
 endif
 targets-y += $(firmware-bins-path-y)
 
@@ -306,20 +358,6 @@ all: $(targets-y)
 
 # Preserve all intermediate files
 .SECONDARY:
-
-$(build_dir)/%.bin: $(build_dir)/%.elf
-	$(call compile_objcopy,$@,$<)
-
-ifeq ($(WITH_SM),y)
-$(build_dir)/%.elf: $(build_dir)/%.o $(build_dir)/%.elf.ld $(platform_build_dir)/lib/libplatsbi.a $(build_dir)/sm/sm.a
-	$(call compile_elf,$@,$@.ld,$< $(platform_build_dir)/lib/libplatsbi.a $(build_dir)/sm/sm.a)
-else
-$(build_dir)/%.elf: $(build_dir)/%.o $(build_dir)/%.elf.ld $(platform_build_dir)/lib/libplatsbi.a
-	$(call compile_elf,$@,$@.ld,$< $(platform_build_dir)/lib/libplatsbi.a)
-endif
-
-$(platform_build_dir)/%.ld: $(src_dir)/%.ldS
-	$(call compile_cpp,$@,$<)
 
 $(build_dir)/lib/libsbi.a: $(libsbi-objs-path-y)
 	$(call compile_ar,$@,$^)
@@ -355,10 +393,22 @@ $(build_dir)/%.dep: $(src_dir)/%.S
 $(build_dir)/%.o: $(src_dir)/%.S
 	$(call compile_as,$@,$<)
 
+$(platform_build_dir)/%.bin: $(platform_build_dir)/%.elf
+	$(call compile_objcopy,$@,$<)
+
+$(platform_build_dir)/%.elf: $(platform_build_dir)/%.o $(platform_build_dir)/%.elf.ld $(platform_build_dir)/lib/libplatsbi.a
+	$(call compile_elf,$@,$@.ld,$< $(platform_build_dir)/lib/libplatsbi.a)
+
+$(platform_build_dir)/%.ld: $(src_dir)/%.ldS
+	$(call compile_cpp,$@,$<)
+
 $(platform_build_dir)/%.dep: $(platform_src_dir)/%.c
 	$(call compile_cc_dep,$@,$<)
 
 $(platform_build_dir)/%.o: $(platform_src_dir)/%.c
+	$(call compile_cc,$@,$<)
+
+$(platform_build_dir)/%.o: $(platform_build_dir)/%.c
 	$(call compile_cc,$@,$<)
 
 $(platform_build_dir)/%.dep: $(platform_src_dir)/%.S
@@ -366,6 +416,17 @@ $(platform_build_dir)/%.dep: $(platform_src_dir)/%.S
 
 $(platform_build_dir)/%.o: $(platform_src_dir)/%.S
 	$(call compile_as,$@,$<)
+
+$(platform_build_dir)/%.dep: $(platform_src_dir)/%.dts
+	$(call compile_gen_dep,$@,.dtb,$<)
+	$(call compile_gen_dep,$@,.c,$(@:.dep=.dtb))
+	$(call compile_gen_dep,$@,.o,$(@:.dep=.c))
+
+$(platform_build_dir)/%.c: $(platform_build_dir)/%.dtb
+	$(call compile_d2c,$@,platform,$(subst .dtb,.o,$(subst /,-,$(subst $(platform_build_dir)/,,$<))),16,dt,$<)
+
+$(platform_build_dir)/%.dtb: $(platform_src_dir)/%.dts
+	$(call compile_dts,$@,$<)
 
 $(platform_build_dir)/%.dep: $(src_dir)/%.c
 	$(call compile_cc_dep,$@,$<)
@@ -378,9 +439,6 @@ $(platform_build_dir)/%.dep: $(src_dir)/%.S
 
 $(platform_build_dir)/%.o: $(src_dir)/%.S
 	$(call compile_as,$@,$<)
-
-$(build_dir)/%.dtb: $(src_dir)/%.dts
-	$(call compile_dts,$@,$<)
 
 # Rule for "make docs"
 $(build_dir)/docs/latex/refman.pdf: $(build_dir)/docs/latex/refman.tex
@@ -432,26 +490,26 @@ install: $(install_targets-y)
 
 .PHONY: install_libsbi
 install_libsbi: $(build_dir)/lib/libsbi.a
-	$(call inst_header_dir,$(install_dir)/include,$(include_dir)/sbi)
-	$(call inst_file,$(install_dir)/lib/libsbi.a,$(build_dir)/lib/libsbi.a)
+	$(call inst_header_dir,$(install_root_dir)/$(install_include_path),$(include_dir)/sbi)
+	$(call inst_file,$(install_root_dir)/$(install_lib_path)/libsbi.a,$(build_dir)/lib/libsbi.a)
 
 .PHONY: install_libsbiutils
 install_libsbiutils: $(build_dir)/lib/libsbiutils.a
-	$(call inst_header_dir,$(install_dir)/include,$(include_dir)/sbi_utils)
-	$(call inst_file,$(install_dir)/lib/libsbiutils.a,$(build_dir)/lib/libsbiutils.a)
+	$(call inst_header_dir,$(install_root_dir)/$(install_include_path),$(include_dir)/sbi_utils)
+	$(call inst_file,$(install_root_dir)/$(install_lib_path)/libsbiutils.a,$(build_dir)/lib/libsbiutils.a)
 
 .PHONY: install_libplatsbi
 install_libplatsbi: $(platform_build_dir)/lib/libplatsbi.a $(build_dir)/lib/libsbi.a $(build_dir)/lib/libsbiutils.a
-	$(call inst_file,$(install_dir)/platform/$(platform_subdir)/lib/libplatsbi.a,$(platform_build_dir)/lib/libplatsbi.a)
+	$(call inst_file,$(install_root_dir)/$(install_lib_path)/opensbi/$(platform_subdir)/lib/libplatsbi.a,$(platform_build_dir)/lib/libplatsbi.a)
 
 .PHONY: install_firmwares
 install_firmwares: $(platform_build_dir)/lib/libplatsbi.a $(build_dir)/lib/libsbi.a $(build_dir)/lib/libsbiutils.a $(firmware-bins-path-y)
-	$(call inst_file_list,$(install_dir),$(build_dir),platform/$(platform_subdir)/firmware,$(firmware-elfs-path-y))
-	$(call inst_file_list,$(install_dir),$(build_dir),platform/$(platform_subdir)/firmware,$(firmware-bins-path-y))
+	$(call inst_file_list,$(install_root_dir),$(build_dir),$(install_firmware_path)/$(platform_subdir)/firmware,$(firmware-elfs-path-y))
+	$(call inst_file_list,$(install_root_dir),$(build_dir),$(install_firmware_path)/$(platform_subdir)/firmware,$(firmware-bins-path-y))
 
 .PHONY: install_docs
 install_docs: $(build_dir)/docs/latex/refman.pdf
-	$(call inst_file,$(install_dir)/docs/refman.pdf,$(build_dir)/docs/latex/refman.pdf)
+	$(call inst_file,$(install_root_dir)/$(install_docs_path)/refman.pdf,$(build_dir)/docs/latex/refman.pdf)
 
 # Rule for "make clean"
 .PHONY: clean
@@ -465,6 +523,8 @@ clean:
 	$(CMD_PREFIX)find $(build_dir) -type f -name "*.elf" -exec rm -rf {} +
 	$(if $(V), @echo " RM        $(build_dir)/*.bin")
 	$(CMD_PREFIX)find $(build_dir) -type f -name "*.bin" -exec rm -rf {} +
+	$(if $(V), @echo " RM        $(build_dir)/*.dtb")
+	$(CMD_PREFIX)find $(build_dir) -type f -name "*.dtb" -exec rm -rf {} +
 
 # Rule for "make distclean"
 .PHONY: distclean
@@ -476,7 +536,7 @@ ifeq ($(build_dir),$(CURDIR)/build)
 	$(if $(V), @echo " RM        $(build_dir)")
 	$(CMD_PREFIX)rm -rf $(build_dir)
 endif
-ifeq ($(install_dir),$(CURDIR)/install)
-	$(if $(V), @echo " RM        $(install_dir)")
-	$(CMD_PREFIX)rm -rf $(install_dir)
+ifeq ($(install_root_dir),$(install_root_dir_default)/usr)
+	$(if $(V), @echo " RM        $(install_root_dir_default)")
+	$(CMD_PREFIX)rm -rf $(install_root_dir_default)
 endif

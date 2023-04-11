@@ -11,14 +11,14 @@
 
 #include "fw_base.S"
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 _bad_dynamic_info:
 	wfi
 	j	_bad_dynamic_info
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 	.global fw_boot_hart
 	/*
 	 * This function is called very early even before
@@ -43,8 +43,8 @@ fw_boot_hart:
 2:	li	a0, -1
 	ret
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 	.global fw_save_info
 	/*
 	 * We can only use a0, a1, a2, a3, and a4 registers here.
@@ -86,22 +86,13 @@ fw_save_info:
 2:
 	ret
 
-	.align 3
 	.section .entry, "ax", %progbits
-	.global fw_prev_arg1
-	/*
-	 * We can only use a0, a1, and a2 registers here.
-	 * The previous arg1 should be returned in 'a0'.
-	 */
-fw_prev_arg1:
-	add	a0, zero, zero
-	ret
-
 	.align 3
-	.section .entry, "ax", %progbits
 	.global fw_next_arg1
 	/*
 	 * We can only use a0, a1, and a2 registers here.
+	 * The a0, a1, and a2 registers will be same as passed by
+	 * previous booting stage.
 	 * The next arg1 should be returned in 'a0'.
 	 */
 fw_next_arg1:
@@ -109,8 +100,8 @@ fw_next_arg1:
 	REG_L	a0, (a0)
 	ret
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 	.global fw_next_addr
 	/*
 	 * We can only use a0, a1, and a2 registers here.
@@ -121,8 +112,8 @@ fw_next_addr:
 	REG_L	a0, (a0)
 	ret
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 	.global fw_next_mode
 	/*
 	 * We can only use a0, a1, and a2 registers here.
@@ -133,8 +124,8 @@ fw_next_mode:
 	REG_L	a0, (a0)
 	ret
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 	.global fw_options
 	/*
 	 * We can only use a0, a1, and a2 registers here.
@@ -146,8 +137,8 @@ fw_options:
 	REG_L	a0, (a0)
 	ret
 
-	.align 3
 	.section .entry, "ax", %progbits
+	.align 3
 _dynamic_next_arg1:
 	RISCV_PTR 0x0
 _dynamic_next_addr:
