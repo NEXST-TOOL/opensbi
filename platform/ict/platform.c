@@ -18,6 +18,7 @@
 #include <sbi/riscv_io.h>
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/sys/clint.h>
+#include <sbi/sbi_trap.h>
 
 /* clang-format off */
 
