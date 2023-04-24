@@ -49,7 +49,9 @@
 
 #define PM_SIP_SVC          0xC2000000
 
+#ifndef RV_ARM_IPC_BASE
 #define RV_ARM_IPC_BASE   0xf0000000
+#endif
 #define IPC_REQ    ((volatile void *)(RV_ARM_IPC_BASE + 0x0))
 #define IPC_API    ((volatile void *)(RV_ARM_IPC_BASE + 0x4))
 #define IPC_ARG_0  ((volatile void *)(RV_ARM_IPC_BASE + 0x10))
