@@ -28,6 +28,7 @@
 #define SBI_EXT_RFENCE				0x52464E43
 #define SBI_EXT_HSM				0x48534D
 #define SBI_EXT_SRST				0x53525354
+#define SBI_EXT_EXP_PERF			0x08000000
 
 /* SBI function IDs for BASE extension*/
 #define SBI_EXT_BASE_GET_SPEC_VERSION		0x0
@@ -74,6 +75,11 @@
 #define SBI_SRST_RESET_REASON_NONE	0x0
 #define SBI_SRST_RESET_REASON_SYSFAIL	0x1
 
+/* SBI function IDs for experimental performance extension */
+#define SBI_EXT_EXP_PERF_SET	0x0
+#define SBI_EXT_EXP_PERF_GET	0x1
+
+/* SBI base specification related macros */
 #define SBI_SPEC_VERSION_MAJOR_OFFSET		24
 #define SBI_SPEC_VERSION_MAJOR_MASK		0x7f
 #define SBI_SPEC_VERSION_MINOR_MASK		0xffffff
