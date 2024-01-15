@@ -69,11 +69,6 @@
 	_(0x33e)     \
 	_(0x33f)
 
-#define CASE_CSR(num)                     \
-	case num:                         \
-		csr_write(num, regs->a1); \
-		break;
-
 static int sbi_ecall_exp_perf_handler(unsigned long extid, unsigned long funcid,
 				      const struct sbi_trap_regs *regs,
 				      unsigned long *out_val,
@@ -82,30 +77,40 @@ static int sbi_ecall_exp_perf_handler(unsigned long extid, unsigned long funcid,
 	int ret = SBI_OK;
 
 	switch (funcid) {
+
+	/* set csr perf func id */
 	case SBI_EXT_EXP_PERF_SET:
 		switch (regs->a0) {
-#define CASE_CSR(num)                     \
-	case num:                         \
-		csr_write(num, regs->a1); \
+
+#define CASE_CSR(num)                               \
+	case num:                                   \
+		*out_val = csr_swap(num, regs->a1); \
 		break;
 			perf_list(CASE_CSR);
 #undef CASE_CSR
+
 		default:
 			return SBI_EINVAL;
 		}
 		break;
+
+	/* get csr perf func id */
 	case SBI_EXT_EXP_PERF_GET:
 		switch (regs->a0) {
+
 #define CASE_CSR(num)                     \
 	case num:                         \
 		*out_val = csr_read(num); \
 		break;
 			perf_list(CASE_CSR);
 #undef CASE_CSR
+
 		default:
 			return SBI_EINVAL;
 		}
 		break;
+
+	/* func id is illegal */
 	default:
 		ret = SBI_ENOTSUPP;
 	}
